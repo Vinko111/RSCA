@@ -1,14 +1,14 @@
--#- Test.py -#-
+-#- Test.py 
 print("FUck")
 
--#- Updater -#-
+-#- Updater 
 Test
 
--#-RSC_New-#-
+-#-RSC_New
 Test
 
--#-Updater-#-
+-#-Updater
 test
 
--#-Send_email-#-
+-#-Send_email
 testsa
