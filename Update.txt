@@ -2,7 +2,42 @@
 print("FUck")
 
 -#- Updater 
-Test
+import urllib.request
+
+web ='https://raw.githubusercontent.com/Vinko111/RSCA/main/Update.txt'
+def WebRead(web):
+    req=urllib.request.urlopen(web)
+    return req.read()
+
+def WriteData(id , data):
+    file=''
+    if id == 1:
+        print("Updater")
+    elif id==2:
+        print("RSC_new")
+    elif id==3:
+        print("Send_email")
+    elif id==4:
+        file = 'Test.py'
+        print("Test.py")
+    else:
+        return False
+    with open(file,'wb') as F:
+        F.write(data)
+        
+
+def Updater():
+    data =WebRead(web)
+    Strdata =str(data)
+    Strdata = Strdata.split("-#-")
+    test=''
+    for x in Strdata:
+        if x.count("Test.py") >= 1:
+            test+=x
+    test=str.encode(test)
+    WriteData(4,test)
+    
+
 
 -#-RSC_New
 Test
