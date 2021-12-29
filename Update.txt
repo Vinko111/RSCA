@@ -15,11 +15,8 @@ import http
 import time
 import threading
 import concurrent.futures
-## Mine modules
-import Send_email
-import Updater
 ##Updater gore
-Version = float(1.2)
+Version = float(1.0)
 # Checks if file exist returns True and False
 def Check_exist (fpath="log.txt"):  
     return os.path.isfile(fpath) > 0
@@ -267,10 +264,10 @@ def check_for_updates (ver=float ,url='https://raw.githubusercontent.com/Vinko11
 
 def Updater(web='https://raw.githubusercontent.com/Vinko111/RSCA/main/Update.txt',file='RSC_new.py'):
     req=urllib.request.urlopen(web)
-    if req.code()==200:
+    if req.code==200:
         with open(file,'wb') as f:
             f.write(req.read())
-        messagebox.showinfo(title='Update uspijesan' ,message='Program se mora resetirati')
+        messagebox.showinfo(title='Update uspijesan' ,message='Program ce se sad zatvoriti.Molim pokreni te ponovno program.')
         app.destroy()
         os._exit(0)
     else:
@@ -2553,11 +2550,6 @@ def RSCA ():
     app=tk.Tk()
     app.title("RSCA")
     app.minsize(1340 , 230)
-    if check_for_updates(Version,"https://raw.githubusercontent.com/Vinko111/RSCA/main/Version.txt") is True:
-        if messagebox.askyesno(title='Update available ', message='Do you wish to update software to new version')==True:
-            print('Ide update')
-        else:
-            print('Skip')
     ############################################################ File Menu ############################################################
     menubar = tk.Menu(app)
     filemenu = tk.Menu(menubar, tearoff=0)
@@ -2634,11 +2626,14 @@ def RSCA ():
     tk.Button(Button_Frame,text="Add new printer",width=51,command=add_conf).grid(column=4,row=11,columnspan=3,rowspan=2,pady=5)
     tk.Button(Button_Frame,text="Automatic Search",width=51,command=ButtonAutomatic).grid(column=0,row=11,columnspan=3,rowspan=2,pady=5)
     app.config(menu=menubar)
+    if check_for_updates(Version,"https://raw.githubusercontent.com/Vinko111/RSCA/main/Version.txt") is True:
+        if messagebox.askyesno(title='Update available ', message='Do you wish to update software to new version')==True:
+            if Updater() == False:
+                Log_error('Code0012','Updater Error')
     ## Check Time to send emails##
     t =threading.Thread(target=ReturnDataForSendTime)
     t.start()
     app.mainloop()
 #######################################################################################################################################################################################################################################################
 RSCA()
-#Updater.Updater()
 os._exit(0)
