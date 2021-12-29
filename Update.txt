@@ -19,7 +19,7 @@ import concurrent.futures
 import Send_email
 import Updater
 ##Updater gore
-Version = float(1.1)
+Version = float(1.2)
 # Checks if file exist returns True and False
 def Check_exist (fpath="log.txt"):  
     return os.path.isfile(fpath) > 0
