@@ -265,6 +265,18 @@ def check_for_updates (ver=float ,url='https://raw.githubusercontent.com/Vinko11
     else:
         return True
 
+def Updater(web='https://raw.githubusercontent.com/Vinko111/RSCA/main/Update.txt',file='RSC_new.py'):
+    req=urllib.request.urlopen(web)
+    if req.code()==200:
+        with open(file,'wb') as f:
+            f.write(req.read())
+        messagebox.showinfo(title='Update uspijesan' ,message='Program se mora resetirati')
+        app.destroy()
+        os._exit(0)
+    else:
+        return False
+
+
 ## Preuzimanje datotke sa printera u spremanje u file  za krositenje.
 def WebResponse (url, urlID,path ,file= 'Dump.txt'):
     try:
@@ -2542,7 +2554,10 @@ def RSCA ():
     app.title("RSCA")
     app.minsize(1340 , 230)
     if check_for_updates(Version,"https://raw.githubusercontent.com/Vinko111/RSCA/main/Version.txt") is True:
-        messagebox.askyesno(title='Update available ', message='Do you wish to update software to new version')
+        if messagebox.askyesno(title='Update available ', message='Do you wish to update software to new version')==True:
+            print('Ide update')
+        else:
+            print('Skip')
     ############################################################ File Menu ############################################################
     menubar = tk.Menu(app)
     filemenu = tk.Menu(menubar, tearoff=0)
