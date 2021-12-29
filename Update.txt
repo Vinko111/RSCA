@@ -1,49 +1,2629 @@
--#- Test.py 
-print("FUck")
+from datetime import datetime
+import subprocess
+import tkinter as tk
+from tkinter.ttk import Combobox
+from tkinter.ttk import Progressbar
+import tkinter.messagebox as messagebox
+import urllib.request 
+import os
+import sys,glob
+import socket
+import ipaddress
+import sqlite3
+import uuid
+import http
+import time
+import threading
+import concurrent.futures
+## Mine modules
+import Send_email
+import Updater
+##Updater gore
+Version = float(1.1)
+# Checks if file exist returns True and False
+def Check_exist (fpath="log.txt"):  
+    return os.path.isfile(fpath) > 0
+# Creates file and write data inside  
 
--#- Updater 
-import urllib.request
+def create (fpath ="log.txt",con = 0):
+    if con == 0:
+        log_file=open(fpath,"w")
+        log_file.write(time+" Log file was created\n")
+        log_file.close()
+    elif con == 1 and fpath =='Config.db':
+        file = open(fpath,"w")
+        file.close()
+        conn=sqlite3.connect(fpath)
+        c= conn.cursor()
+        c.execute("""
+                CREATE TABLE CONFIG (
+                OID integer PRIMARY KEY,
+                HOSTNAME TEXT,
+                IP_ADD TEXT,
+                MODEL_ID TEXT,
+                EMAIL_ID  TEXT,
+                REC_EMAIL TEXT,
+                TIME_ID TEXT
+            )
+        
+            """)
+        conn.commit()
+        c.execute("""
+            CREATE TABLE EMAIL (
+                OID integer PRIMARY KEY,
+                ADDRES TEXT,
+                PASS TEXT,
+                CONF_E_ID TEXT
+            )
+        
+            """)
+        conn.commit()
+        c.execute("""
+            CREATE TABLE TIME (
+                OID integer PRIMARY KEY,
+                NAZIV TEXT,
+                DATA TEXT,
+                POZ INTEGER
+            )
+        
+            """)
+        conn.commit()
+        c.execute("""
+            CREATE TABLE MODEL(
+                OID integer PRIMARY KEY,
+                NAZIV TEXT,
+                PATH TEXT,
+                WEBPATH TEXT,
+                WEB TEXT
+                
+            
+            )
 
-web ='https://raw.githubusercontent.com/Vinko111/RSCA/main/Update.txt'
-def WebRead(web):
-    req=urllib.request.urlopen(web)
-    return req.read()
 
-def WriteData(id , data):
-    file=''
-    if id == 1:
-        print("Updater")
-    elif id==2:
-        print("RSC_new")
-    elif id==3:
-        print("Send_email")
-    elif id==4:
-        file = 'Test.py'
-        print("Test.py")
+
+            """)
+        conn.commit()
+        c.execute("""
+            CREATE TABLE SERVER(
+                OID integer PRIMARY KEY,
+                SERVER TEXT,
+                PROC TEXT
+            
+            )
+
+
+
+            """)
+        conn.commit()
+        c.execute("INSERT INTO SERVER VALUES (:id,:naziv, :Proc)",
+                      {
+                          'id': 1,
+                          'naziv' : "smtp.gmail.com",
+                          'Proc' : "465"
+                }
+            )
+        conn.commit()
+        c.execute("INSERT INTO TIME VALUES (:id,:naziv, :data, :time)",
+                      {
+                          'id': 1,
+                          'naziv' : "1 Day",
+                          'data' : "0000-00-01 00:00:00",
+                          'time' : 0
+                }
+            )
+        conn.commit()
+        c.execute("INSERT INTO TIME VALUES (:id,:naziv, :data, :time)",
+                      {
+                          'id': 2,
+                          'naziv' : "7 Day",
+                          'data' : "0000-00-07 00:00:00",
+                          'time' : 0
+                }
+            )
+        conn.commit()
+        c.execute("INSERT INTO TIME VALUES (:id,:naziv, :data, :time)",
+                      {
+                          'id' : 3,
+                          'naziv' : "1 Week",
+                          'data' : "0000-01-00 00:00:00",
+                          'time' : 0
+                }
+            )
+        conn.commit()
+        c.execute("INSERT INTO TIME VALUES (:id,:naziv, :data, :time)",
+                      {
+                          'id' : 4,
+                          'naziv' : "2 Week",
+                          'data' : "0000-02-00 00:00:00",
+                          'time' : 0 
+                }
+            )
+        conn.commit()
+        c.execute("INSERT INTO TIME VALUES (:id,:naziv, :data, :time)",
+                      {
+                          'id': 5,
+                          'naziv' : "1 Year",
+                          'data' : "0001-00-00 00:00:00",
+                          'time' : 0
+                }
+            )
+        conn.commit()
+        c.execute("INSERT INTO MODEL VALUES (:id,:naziv, :data,:data1,:web)",
+                      {
+                          'id' : 1,
+                          'naziv' : "Konica Minolta BIZHUB C654",
+                          'data' : "/wcd/system_counter.xml",
+                          'data1' : "/wcd/system_device.xml",
+                          'web' : "/wcd/index.html"
+                }
+            )
+        conn.commit()
+            
+        conn.close()
+
+    else:
+        Log_error("Code 0001er","Func called without reason or Fpath given wrong key")
+        return False
+##  Transfer Time in sec 
+def time_sec(Time):
+    Time =Time.split(" ")
+    dd=Time[0].split("-")
+    sec=Time[1].split(":")
+    sec = (int(sec[0])*60+int(sec[1]))*60 + float(sec[2])
+    day = 0
+    mj=["01","03","05","07","08","10","12"]
+    if int(dd[0])-2021 >= 1:
+        for x in range(0,int(dd[0])-2021):
+            if int(dd[0]) % 4 == 0 and  int(dd[0]) % 100 == 0 and int(dd[0]) % 400 == 0:
+                day+=366
+            else:
+                day+=365
+    for x in range (1,int(dd[1])):
+        if mj.count(x) == 1:
+         day+=31
+        elif x == 2: 
+            if int(dd[0]) % 4 == 0 and  int(dd[0]) % 100 == 0 and int(dd[0]) % 400 == 0:
+                day+=29
+            else:
+                 day+=28
+        else:
+            day+=30
+    day+=int(dd[2])
+    sec = (day*24)*3600 - sec
+    return sec
+
+# Writes date of successful email
+def log_send_email(printer,fpath="Log.txt"):
+    if Check_exist(fpath) is True:
+        log_file=open(fpath,"a")
+        time=str(datetime.now())
+        log_file.write(time+" Email uspijesno poslan sa : "+str(printer)+"\n")
+        log_file.close()
+    else:
+        create(fpath)
+        log_file=open(fpath,"a")
+        time=str(datetime.now())
+        log_file.write(time+" Email uspijesno poslan sa : "+str(printer)+"\n")
+        log_file.close()
+## Log errors 
+## Code 00000er Default , Code 0001er Func called without reason or Fpath given wrong key, Code 0002er Failed to update combobox(Program still funcional) Code 0003er Failed to return id to 0  CODE 0004er Failed to check for table (Return_ID) Code0005er Failed to get info from socket
+## Code 0006er Failed Automatic serch  0007er Failed to dowland file from url , 0008er Failed To dowland data from url(ID)
+## Code 0009 Web page can't load Code 0010 Failed to dowland data from printer Code 0011 Unknow error durring SocektResponsa for IP: 
+def Log_error(code="000000er", text=" Gresak Koda (Default) : "):
+    time=str(datetime.now())
+    if Check_exist('log.txt') is False:
+        create()
+    log_file=open("log.txt","a")
+    log_file.write(time+text+code+"\n")
+    log_file.close()
+## Funkcija za conv vremena
+def conv_time(time):
+    time=str(time)
+    time=time.rsplit(" ")
+    time=time[0].rsplit("-")
+    return  time
+
+def convTime_Sec(time):
+    time=str(time)
+    time=time.rsplit(" ")
+    time=time[1].rsplit(":")
+    return  time
+
+## Funkcija za provjeru u logivma zadnji datum.
+def Check_EmailLogs(printer,fpath="log.txt"):
+    rj=[]
+    b=""
+    if Check_exist(fpath) is True:
+        log_file=open(fpath,"r")
+        lines=log_file.readlines()
+        log_file.close()
+        lines.reverse()
+        for line in lines:
+            if line.count("Email uspijesno poslan")>=1:
+                logTime=line.rsplit("Email uspijesno poslan sa : ")
+                b=logTime[1]
+                b=b[0:len(b)-1]
+                if b == printer:
+                    rj=[logTime[0],printer]
+                    return rj         
+            else:
+                continue
+
+    else:
+        create(fpath)
+        return False
+    return False
+
+## Sama  ime funkcije govori sta radi 
+## U slucaju da je verzija program veca nego prek interneta javit ce da treba updatati code
+def check_for_updates (ver=float ,url='https://raw.githubusercontent.com/Vinko111/RSCA/main/Version.txt'):
+    data=urllib.request.urlopen(url).read()
+    data=str(data)
+    data=data.rsplit('/')
+    if float(data[1]) == ver:
+        return False
+    else:
+        return True
+
+## Preuzimanje datotke sa printera u spremanje u file  za krositenje.
+def WebResponse (url, urlID,path ,file= 'Dump.txt'):
+    try:
+        temp = ""
+        req = urllib.request.Request(urlID)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36')
+        content = urllib.request.urlopen(req)
+        cookie = content.getheaders()
+        for x in cookie:
+                if x[0] == "Set-Cookie":
+                    cookie = x[1]
+                    break
+                else:
+                    continue
+        req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36')
+        req.add_header('Cookie','ID ='+cookie)
+        content= urllib.request.urlopen(req)
+        if content.getcode() == 200:
+            line= ""
+            temp = content.read()
+            temp = str(temp)
+            temp = temp.rsplit("\\n")
+            for x in temp:
+                if x.count("System")>=1 and x.count("ProductName") >= 1:
+                    line = x
+                    line = line.rsplit("<ProductName>")
+                    line = line[1].rsplit("</ProductName>")
+                    names = str(line[0])
+                    return url, urlID , path, names
+
+        else:
+            return None
+
+    except urllib.error.URLError:
+        Log_error(" Code 0009er","Web page can't load"+str(url))
+    except:
+        Log_error(" Code 0008er","Failed to dowland file from "+str(url)+" Cookie error")
+
+def CheckSendTime(Pritner,ChosenTime,ID,file='log.txt',exact=0):
+     time=str(datetime.now())
+     time=time_sec(time)
+     StoreVar= ''
+     if exact == 0:
+         StoreVar = Check_EmailLogs(Pritner,file)
+         if StoreVar == False:
+             Manual_Email(ID)
+         else:
+             StoreVar=time_sec(StoreVar[0])
+             time = float(time) - float(StoreVar)
+             if time >=time_sec(ChosenTime):
+                Manual_Email(ID)
+             else:
+                 return False
+             
+
+     else:
+         if time>=time_sec(ChosenTime):
+             StoreVar = Check_EmailLogs(Pritner,file)
+             if Check_EmailLogs(Pritner,file) != False:
+                 StoreVar = time_sec(StoreVar[0])
+                 if time_sec(ChosenTime) > time_sec(StoreVar):
+                     Manual_Email(ID)
+                 else:
+                     Manual_Email(ID)   
+             else:
+                 return False
+         else:
+             return False
+
+############# Beskorisna funkcije :D########
+def  WasteOfTime(Useless_var):
+    useless=""
+    get_key = hex(uuid.getnode())
+    key =""
+    for char in get_key :
+        if char.isdigit() == True :
+            key +=str(char)
+    if key[0] == "0" :
+        key = "1"+key[1:len(key)]
+    for x in Useless_var:
+        useless += str(int(ord(x))*int(key))+"@"*100
+    return useless
+
+def TimeToWaste (Useful_Var):
+    Useful_Var = Useful_Var.split("@"*100)
+    get_key = hex(uuid.getnode())
+    key =""
+    for char in get_key :
+        if char.isdigit() == True :
+             key +=str(char)
+        
+    if key[0] == "0" :
+       key = "1"+key[1:len(key)]
+    Useful_Str =""
+    for x in range(0,len(Useful_Var)-1):
+        Useful_Str+=chr(int(int(Useful_Var[x]) / int(key)))
+
+    return Useful_Str
+
+#######################################
+######## Funkcije za RSCA #############
+#######################################
+def read_combo ():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid,ADDRES FROM EMAIL")
+   records = c.fetchall()
+   email_str=[""]
+   for record in records:
+       email_str.append(str(record[0])+" | "+record[1])
+   c_email['values'] = email_str
+
+   c.execute("SELECT oid,NAZIV FROM MODEL")
+   records = c.fetchall()
+   model_str=[""]
+   for record in records:
+       model_str.append(str(record[0])+" | "+record[1])
+   c_model['values'] = model_str
+
+ 
+   c.execute("SELECT oid,NAZIV FROM TIME")
+   records = c.fetchall()
+   conn.commit()
+   conn.close()
+   time_str=[""]
+   for record in records:
+       time_str.append(str(record[0])+" | "+record[1])
+   c_time['values'] = time_str
+   return email_str , model_str , time_str
+
+def readCombo_ReturnData ():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid FROM EMAIL")
+   records = c.fetchall()
+   email_str=[""]
+   for record in records:
+       email_str.append(record[0])
+
+   c.execute("SELECT oid FROM MODEL")
+   records = c.fetchall()
+   model_str=[""]
+   for record in records:
+       model_str.append(record[0])
+
+   c.execute("SELECT oid FROM TIME")
+   records = c.fetchall()
+   conn.commit()
+   conn.close()
+   time_str=[""]
+   for record in records:
+       time_str.append(record[0])
+   return email_str , model_str ,time_str
+  
+
+def add_conf ():
+     if Var_M[0] =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Niste odabrali Model printera.\nMolim vas odaberi te model printera')
+         return False
+     if str(E_Conf_IP.get()) =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='IP printera je prazan.\nMolim vas unesite IP printera')
+         return False
+     else:
+         for x in str(E_Conf_IP.get()) :
+             if x.isalpha() == True:
+                 messagebox.showwarning(title='Neispravni unos podataka',message='IP Printera neispravan.\nMolim vas unesite IP printera')
+                 return False
+     if str(E_Conf_Mask.get()) =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Subnet Maska je prazna.\nMolim vas unesite subnet masku printera')
+         return False
+     else:
+         for x in str(E_Conf_Mask.get()) :
+             if x.isalpha() == True:
+                 messagebox.showwarning(title='Neispravni unos podataka',message='Subnet maska je neispravna.\nMolim vas unesite subnet masku printera')
+                 return False
+     ip = str(E_Conf_IP.get()) +"/" +str(E_Conf_Mask.get())
+     Var_M=c_model.get()
+     Var_E=c_email.get()
+     Var_T=c_time.get()
+     Var_M=Var_M.split(" | ")
+     Var_E=Var_E.split(" | ")
+     Var_T=Var_T.split(" | ")
+     if Var_E[0] =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Niste odabrali E-mail.\nMolim vas odaberi te E-mail')
+         return False
+     if Var_T[0] =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Niste odabrali razmak izmedu slanja emila.\nMolim vas odaberi te razmak izmedu slanja emila')
+         return False
+     if E_Conf_Host.get() =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Hostname printera je prazan.\nMolim daj te ime printeru')
+         return False
+     if E_Conf_RecEmail.get() =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Adresa primatelja je prazna.\nMolim popunite adresu primatelja.')
+         return False
+
+     var_ID = Return_id(0)
+     for x in range(0,len(var_ID)):
+         if x+1 != var_ID[x]:
+             id=x+1
+             break
+         else:
+             id=x+2
+
+     conn=sqlite3.connect("Config.db")
+     c= conn.cursor()
+     c.execute("INSERT INTO CONFIG VALUES (:ID,:hostname, :ipadd, :model, :email, :RecEmail, :time)",
+            {
+                'ID' : id,
+                'hostname': E_Conf_Host.get(),
+                'ipadd': ip,
+                'model': int(Var_M[0]),
+                'email': int(Var_E[0]),
+                'RecEmail': E_Conf_RecEmail.get(),
+                'time': int(Var_T[0])
+            })
+     conn.commit()
+     conn.close()
+     E_Conf_Host.delete(0,len(E_Conf_Host.get()))
+     E_Conf_IP.delete(0,len(E_Conf_IP.get()))
+     E_Conf_Mask.delete(0,len(E_Conf_Mask.get()))
+     c_model.current(0) 
+     c_email.current(0)
+     E_Conf_RecEmail.delete(0,len(E_Conf_RecEmail.get()))
+     c_time.current(0)
+   
+     realod_conf()
+def realod_conf ():
+     conn=sqlite3.connect("Config.db")
+     c= conn.cursor()
+     c.execute("SELECT *FROM CONFIG " )
+     records = c.fetchall()
+     br=1
+     for record in records:
+         mask = record[2]
+         mask= mask.rsplit("/")
+         def func(x=record[0]):
+             return Delete_conf(x)
+         def func1(x=record[0]):
+             return Update_conf(x)
+         def func2(x=record[0]):
+             return Copy_Config(x)
+         def func3(x=record[0]):
+             return Manual_Email(x)
+         tk.Label(labelframe, text=record[1],borderwidth=2,width=17).grid(column=0,row=br)
+         tk.Label(labelframe, text=mask[0],borderwidth=2,width=17).grid(column=1,row=br)
+         tk.Label(labelframe, text=mask[1],borderwidth=2,width=17).grid(column=2,row=br)
+         c= conn.cursor()
+         c.execute("SELECT naziv FROM Model Where Oid= " +str(record[3]))
+         model = c.fetchall()
+         c= conn.cursor()
+         c.execute("SELECT ADDRES FROM EMAIL Where Oid= " +str(record[4]))
+         email = c.fetchall()
+         tk.Label(labelframe, text=model[0][0],borderwidth=2,width=25).grid(column=3,row=br)
+         tk.Label(labelframe, text=email[0][0],borderwidth=2,width=17).grid(column=4,row=br)
+         tk.Label(labelframe, text=record[5],borderwidth=2,width=17).grid(column=5,row=br)
+         c= conn.cursor()
+         c.execute("SELECT naziv FROM TIME Where Oid= " +str(record[6]))
+         time = c.fetchall()
+         tk.Label(labelframe, text=time[0][0],borderwidth=2,width=17).grid(column=6,row=br)
+         if Check_EmailLogs(record[1]) == False:
+             pass
+         else:
+             logs=Check_EmailLogs(record[1])
+             logs[0]=logs[0].split(" ")
+             tk.Label(labelframe, text=str(logs[0][0]),borderwidth=2,width=17).grid(column=7,row=br)
+         tk.Button(labelframe,text='Delete',command=func,width=6).grid(column=8,row=br)
+         tk.Button(labelframe,text='Update',command=func1,width=6).grid(column=9,row=br)
+         tk.Button(labelframe,text='Copy',command=func2,width=6).grid(column=10,row=br)
+         tk.Button(labelframe,text='E-mail',command=func3,width=6).grid(column=11,row=br)
+         br+=1
+     conn.commit()
+     conn.close()
+def Delete_conf(id):
+    conn = sqlite3.connect('Config.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM CONFIG WHERE oid = " + str(id))
+    conn.commit()
+    conn.close()
+    app.destroy()
+    RSCA()
+    
+def Update_conf(id):
+    ip = str(E_Conf_IP.get()) +"/" +str(E_Conf_Mask.get())
+    conn = sqlite3.connect('Config.db')
+    c = conn.cursor()
+    Var_M=c_model.get()
+    Var_E=c_email.get()
+    Var_T=c_time.get()
+    Var_M=Var_M.split(" | ")
+    Var_E=Var_E.split(" | ")
+    Var_T=Var_T.split(" | ")
+    c.execute("UPDATE CONFIG SET HOSTNAME = :naziv , IP_ADD = :data  , MODEL_ID = :model , EMAIL_ID = :email , REC_EMAIL = :Remail , TIME_ID = :time WHERE OID = :id" ,
+              {
+               'naziv':E_Conf_Host.get() ,
+               'data':ip,
+               'model': int(Var_M[0]),
+               'email':int(Var_E[0]) ,
+               'Remail':E_Conf_RecEmail.get() ,
+               'time':int(Var_T[0]) ,
+               'id': str(id)
+                 }
+              
+              )
+    conn.commit()
+    conn.close()
+    realod_conf()
+    E_Conf_Host.delete(0,len(E_Conf_Host.get()))
+    E_Conf_IP.delete(0,len(E_Conf_IP.get()))
+    E_Conf_Mask.delete(0,len(E_Conf_Mask.get()))
+    E_Conf_RecEmail.delete(0,len(E_Conf_RecEmail.get()))
+    c_email.current(0)
+    c_model.current(0)
+    c_time.current(0)
+
+def send_email(address="",password="", des="", text="" , sub="" ,srw='smtp.gmail.com',proc=465):
+    from email.message import EmailMessage
+    import smtplib
+    msg = EmailMessage()
+    msg['Subject'] = sub
+    msg['From'] = address
+    msg ['To'] = des
+    msg.set_content (text)
+    with smtplib.SMTP_SSL(srw,int(proc)) as smtp:
+        try:
+            smtp.login(address, password)
+            smtp.send_message(msg)
+            return True
+        except smtplib.SMTPAuthenticationError:
+            Log_error("Code0107","Prijava na server has failed ")
+            return 4
+        except smtplib.SMTPServerDisconnected:
+            Log_error("Code0101","Server Diconnected")
+            return 0
+        except smtplib.SMTPResponseException:
+            Log_error("Code0102","Server Returned Error code ")
+            return 0
+        except smtplib.SMTPSenderRefused:
+            Log_error("Code0103","Server Sender addres Refuesed ")
+            return 2
+        except smtplib.SMTPRecipientsRefused:
+            Log_error("Code0104","Server Recipients addres Refuesed ")
+            return 3
+        except smtplib.SMTPDataError:
+            Log_error("Code0105","Server Refused to send data ")
+            return 0
+        except smtplib.SMTPConnectError:
+            Log_error("Code0106","Connecting  to sever has failed ")
+            return 0
+
+def Manual_Email(id):
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM CONFIG WHERE oid = " +str(id))
+    records = c.fetchall()
+    conn.commit()
+    config =records[0]
+    c= conn.cursor()
+    c.execute("SELECT * FROM EMAIL WHERE oid = " +str(config[4]))
+    records = c.fetchall()
+    email= records[0]
+    c= conn.cursor()
+    c.execute("SELECT * FROM MODEL WHERE oid = " +str(config[3]))
+    records = c.fetchall()
+    model= records[0]
+    c= conn.cursor()
+    c.execute("SELECT * FROM SERVER WHERE oid = " +str(email[3]))
+    records = c.fetchall()
+    srw = records[0]
+    conn.close()
+    IP = config[2].split("/")
+    data =ReadCounter(IP[0],model[2],model[3],model[4])
+    if data == False:
+        Log_error("Code 0010er","Failed to dowland data from printer")
+        messagebox.showwarning(title="Faild to dowland data from pritner: "+str(config[1]),message="Printer {} ne odgovara na upit.\nČesti razlozi su :\nPrinter je isključen\nNema prisutp internetu\nPodatci su krivo unešeni u program\nAko ste provjerili navedene razloge problem je u programu.".format(str(config[1])))
+        return False
+    dataStr="State of Tonner for printer: "+str(config[1])+"\n"+data[4]
+    dataStr=dataStr+"\n\nState of Counter for Printer: "+str(config[1])+"\n\nTotal Counter\n"
+    dataStr= dataStr +data[0]+"\n\nCopy Counter\n"+data[1]+"\n\nPrint Counter\n"+data[2]+"\n\nScan Counter\n"+data[3]
+    DataEmail=Send_email.send_email(email[1],TimeToWaste(email[2]),config[5],dataStr, " Counter update from printer:"+str(config[1]),str(srw[1]),int(srw[2]))
+    if DataEmail == 0 :
+        messagebox.showwarning(title="Failed to Send e-mail",message="Nastala greška tijekom slanja e-maila.")
+        return False
+    elif DataEmail == 4:
+        messagebox.showwarning(title="Failed to Send e-mail",message="Neuspješno potvrđivanje podatak sa serverom. \nProvjeri te jel su dobro uneseni podatci za E-mail.")
+        return False
+    elif DataEmail == 2:
+        messagebox.showwarning(title="Failed to Send e-mail",message="E-mail adresa od pošiljatelja nije prihvaćena.\nMolim provjeri te je li su podatci ispravno uneseni")
+        return False
+    elif DataEmail == 3:
+        messagebox.showwarning(title="Failed to Send e-mail",message="E-mail adresa od primatelja nije prihvaćena.\nMolim provjeri te je li su podatci ispravno uneseni")
+        return False
+
+    log_send_email(str(config[1]))
+    Refresh()
+
+def ReturnDataForSendTime():
+    Time=[]
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM CONFIG")
+    records = c.fetchall()
+    for record in records:
+        c =conn.cursor()
+        c.execute("SELECT * FROM TIME where oid="+str(record[-1]))
+        TimeData=c.fetchall()
+        Time.append(record[0])
+        Time.append(record[1])
+        Time.append(TimeData[0][2])
+        Time.append(TimeData[0][3])
+        CheckSendTime(record[1],TimeData[0][2],record[0],'log.txt',TimeData[0][3])
+    time.sleep(3600)
+    return ReturnDataForSendTime()
+
+def ReadCounter(IP,Path,TonnerPath,Web):
+    if Path[0] != "/":
+        Path ="/"+Path
+    if TonnerPath[0] != "/":
+        TonnerPath ="/"+TonnerPath
+    if Web[0] != "/":
+        Web ="/"+Web
+    ip = "http://"+IP+Path
+    web = "http://"+IP+Web
+    TonnerWeb="http://"+IP+TonnerPath
+    temp =""
+    try:
+        req = urllib.request.Request(web)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36')
+        content = urllib.request.urlopen(req)
+        cookie = content.getheaders()
+        for x in cookie:
+                if x[0] == "Set-Cookie":
+                    cookie = x[1]
+                    break
+                else:
+                    continue
+        req = urllib.request.Request(ip)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36')
+        req.add_header('Cookie','ID ='+cookie)
+        content= urllib.request.urlopen(req) 
+        if content.getcode()==200:
+            temp = content.read()
+            temp = str(temp)
+            temp =temp.rsplit("\\n")
+            Total=""
+            Copy=""
+            Print=""
+            Scan=""
+            for x in temp:
+                if x.count("TotalCounterList")>= 1:
+                    x= x.split("<EcoIndex>")
+                    x = x[0]
+                    x = x.replace("<ArraySize>","")
+                    x = x.replace("</ArraySize>","")
+                    x = x.replace("<Count>"," ")
+                    x = x.replace("</Count>","")
+                    x = x.replace("<Type>","")
+                    x = x.replace("</Type>","")
+                    x = x.replace("</TotalCounter>","")
+                    x = x.replace("</CopyCounter>","")
+                    x = x.replace("</PrintCounter>","")
+                    x = x.replace("</ScanFaxCounter>","")
+                    Total =x.split("<TotalCounterList>")
+                    Total = Total[1].split("</TotalCounterList>")
+                    Total = Total[0]
+                    Total =Total.replace("<TotalCounter>","\n")
+                    Total = Total[1:len(Total)]
+                    Copy =x.split("<CopyCounterList>")
+                    Copy = Copy[1].split("</CopyCounterList>")
+                    Copy = Copy[0]
+                    Copy= Copy.replace("<CopyCounter>","\n")
+                    Copy = Copy[1:len(Copy)]
+                    Print = x.split("<PrintCounterList>")
+                    Print = Print[1].split("</PrintCounterList>")
+                    Print = Print[0]
+                    Print=Print.replace("<PrintCounter>","\n")
+                    Print= Print[1:len(Print)]
+                    Scan = x.split("<ScanFaxCounterList>")
+                    Scan = Scan[1].split("</ScanFaxCounterList>")
+                    Scan = Scan[0]
+                    Scan = Scan.replace("<ScanFaxCounter>","\n")
+                    Scan= Scan[2:len(Scan)]
+        else:
+            return False
+        req = urllib.request.Request(TonnerWeb)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36')
+        req.add_header('Cookie','ID ='+cookie)
+        content= urllib.request.urlopen(req) 
+        if content.getcode()==200:
+            temp = content.read()
+            temp = str(temp)
+            temp =temp.rsplit("\\n")
+            Tonner =""
+            for x in temp:
+                if x.count("<ConsumableList>")>=1:
+                    x=x.replace("<ConsumableList>","")
+                    x=x.replace("</ConsumableList>","")
+                    x=x.replace("<ArraySize>","@")
+                    x=x.replace("</ArraySize>","")
+                    x=x.replace("<StartDate>"," Start Date: ")
+                    x=x.replace("</StartDate>","")
+                    x=x.replace("<Year>","")
+                    x=x.replace("</Year>","")
+                    x=x.replace("<Month>"," ")
+                    x=x.replace("</Month>","")
+                    x=x.replace("<Day>"," ")
+                    x=x.replace("</Day>","")
+                    x=x.replace("<EndForecast>"," End of Life Forecast: ")
+                    x=x.replace("</EndForecast>","")
+                    x=x.replace("<Consumable>","")
+                    x=x.replace("</Consumable>","")
+                    x=x.replace("</Type>","")
+                    x=x.replace("<Type>"," @")
+                    x=x.replace("</Name>","")
+                    x=x.replace("<Name>","\n")
+                    x=x.replace("<CurrentLevel>"," ")
+                    x=x.replace("</CurrentLevel>","")
+                    x=x.replace("<LevelPer>","")
+                    x=x.replace("</LevelPer>","%")
+                    x=x.replace("<Color>"," @")
+                    x=x.replace("</Color>","")
+                    x=x.replace("<LevelState>"," ")
+                    x=x.replace("</LevelState>","")
+                    x=x.split("\n")
+                    for l in x:
+                        l =l.split("@")
+                        Tonner =Tonner+str(l[0])+"\n"
+                    return Total,Copy,Print,Scan,Tonner
+        else:
+            return Total,Copy,Print,Scan,"Failed to get Tonner %"
+
+    except:
+        return False
+    return False
+
+def Copy_Config(id):
+    E_Conf_Host.delete(0,len(E_Conf_Host.get()))
+    E_Conf_IP.delete(0,len(E_Conf_IP.get()))
+    E_Conf_Mask.delete(0,len(E_Conf_Mask.get()))
+    E_Conf_RecEmail.delete(0,len(E_Conf_RecEmail.get()))
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM CONFIG WHERE oid = " +str(id))
+    records = c.fetchall()
+    conn.commit()
+    conn.close()
+    ip =records[0][2]
+    ip=ip.rsplit("/")
+    E_Conf_Host.insert(0,records[0][1])
+    E_Conf_IP.insert(0,ip[0])
+    E_Conf_Mask.insert(0,ip[1])
+    E_Conf_RecEmail.insert(0,records[0][5])
+#### OVO RADI ZA SAD NAJVRATNIJE KAD NAPRAVIS NORMALNU BAZU PODATAKA OVO CE BITI SKORZ NEPOTREBNO JER CES TABLICE BITI POVEZANE ISKRENO ZASTO NASTO SAMO NISAM ODMAH NAPRAVIO NORLAMNU BAZU PODATAK NEGO NAPRAVIO CIJELI PROGRAM I ONDA SHVATIM DA SAM GLUP 
+    data = readCombo_ReturnData ()
+    if data[0].count(int(records[0][4])) == 1 : 
+        c_email.current(data[0].index(int(records[0][4])))
+    else:
+        c_email.current(0)
+        Log_error("Code 0002er"," Failed to update  email combobox")
+    if data[1].count(int(records[0][3])) == 1 : 
+        c_model.current(data[1].index(int(records[0][3])))
+    else:
+        c_model.current(0)
+        Log_error("Code 0002er"," Failed to update  model combobox")
+    if data[2].count(int(records[0][6])) == 1 : 
+        c_time.current(data[2].index(int(records[0][6])))
+    else:   
+        c_time.current(0)
+        Log_error("Code 0002er"," Failed to update time combobox")
+
+def Refresh():
+    read_combo()
+    realod_conf()
+
+## Reads config and rest of tables to return full  names for user
+def Return_config (oid):
+    rj= []
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM CONFIG WHERE OID = "+str(oid))
+    records= c.fetchall()
+    conn.close
+    for record in records:
+        rj.append(str(record[0]))
+        rj.append(str(record[1]))
+        rj.append(str(record[2]))
+        c= conn.cursor()
+        c.execute("SELECT NAZIV FROM MODEL WHERE OID = "+str(record[3]))
+        model_n = c.fetchall()
+        rj.append(str(model_n[0][0]))
+        c= conn.cursor()
+        c.execute("SELECT ADDRES FROM EMAIL WHERE OID = "+str(record[4]))
+        email_n = c.fetchall()
+        rj.append(str(email_n[0][0]))
+        rj.append(str(record[5]))
+        c= conn.cursor()
+        c.execute("SELECT NAZIV FROM TIME WHERE OID = "+str(record[6]))
+        time_n = c.fetchall()
+        rj.append(str(time_n[0][0]))
+
+    return rj 
+
+## Return ID vraca sve OID iz odredene tablice krosti se da se popuni rupa izmdeu IDOVA
+def Return_id (Table_id):
+    rj=[]
+    if Table_id == 0:
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT OID FROM CONFIG")
+        records = c.fetchall()
+        conn.commit()
+        for record in records:
+            rj.append(record[0])
+        conn.close()
+        rj.sort()
+        return rj
+    elif Table_id == 1:
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT OID FROM TIME")
+        records = c.fetchall()
+        conn.commit()
+        for record in records:
+            rj.append(record[0])
+        conn.close()
+        rj.sort()
+        return rj
+    elif Table_id == 2 :
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT OID FROM MODEL")
+        records = c.fetchall()
+        conn.commit()
+        for record in records:
+            rj.append(record[0])
+        conn.close()
+        rj.sort()
+        return rj
+    elif Table_id == 3:
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT OID FROM EMAIL")
+        records = c.fetchall()
+        conn.commit()
+        for record in records:
+            rj.append(record[0])
+        conn.close()
+        rj.sort()
+        return rj
+    elif Table_id == 4:
+         conn=sqlite3.connect("Config.db")
+         c= conn.cursor()
+         c.execute("SELECT OID FROM SERVER")
+         records = c.fetchall()
+         conn.commit()
+         for record in records:
+           rj.append(record[0])
+         conn.close()
+         rj.sort()
+         return rj
+    else:
+       Log_error("code 0004er"," Failed to check for table (Return_ID)")
+### Provjerava jel se koristi index u configu za odredenu tablicu tako da mozemo izbrisati
+def DatabaseIndex_check (checkid , table):
+    checkid = str(checkid)
+    table = int(table)
+    rj=[]
+    if table == 1 :
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT MODEL_ID,OID FROM CONFIG")
+        records = c.fetchall()
+        conn.commit()
+        conn.close()
+        for x in range(0,len(records)):
+            if records[x][0].count(checkid) == 1:
+                rj.append(records[x][1])
+
+    elif table == 2:
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT EMAIL_ID,OID FROM CONFIG")
+        records = c.fetchall()
+        conn.commit()
+        conn.close()
+        for x in range(0,len(records)):
+            if records[x][0].count(checkid) == 1:
+                rj.append(records[x][1])
+    elif table == 3:
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT TIME_ID,OID FROM CONFIG")
+        records = c.fetchall()
+        conn.commit()
+        conn.close()
+        for x in range(0,len(records)):
+            if records[x][0].count(checkid) == 1:
+                rj.append(records[x][1])              
+    elif table == 4:
+        conn=sqlite3.connect("Config.db")
+        c= conn.cursor()
+        c.execute("SELECT CONF_E_ID,OID FROM EMAIL")
+        records = c.fetchall()
+        conn.commit()
+        conn.close()
+        for x in range(0,len(records)):
+            if records[x][0].count(checkid) == 1:
+                rj.append(records[x][1])             
+    return rj
+
+def RefreshEntry ():
+    E_Conf_Host.delete(0,len(E_Conf_Host.get()))
+    E_Conf_IP.delete(0,len(E_Conf_IP.get()))
+    E_Conf_Mask.delete(0,len(E_Conf_Mask.get()))
+    c_model.current(0) 
+    c_email.current(0) 
+    E_Conf_RecEmail.delete(0,len(E_Conf_RecEmail.get()))
+    c_time.current(0) 
+
+def Rebuild ():
+    if messagebox.askyesno(title="Upozoranje",message="Baza podataka će biti izbrisana i ponovo sagrađena.\nSvi podatci spremljeni u bazu podatak će biti izgubljeni\n Jeste li sigurni da želite nastaviti") == True:
+        create('Config.db',1)
+        app.destroy()
+        RSCA()
+        messagebox.showinfo(title="Rebuild uspiješno", message="Baza podataka se uspijesno vratila na zadane postvake")
     else:
         return False
-    with open(file,'wb') as F:
-        F.write(data)
-        
 
-def Updater():
-    data =WebRead(web)
-    Strdata =str(data)
-    Strdata = Strdata.split("-#-")
-    test=''
-    for x in Strdata:
-        if x.count("Test.py") >= 1:
-            test+=x
-    test=str.encode(test)
-    WriteData(4,test)
+def Export():
+    global Exp_Entry
+    global Exp_Combo
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT oid,HOSTNAME FROM CONFIG")
+    records=c.fetchall()
+    conn.close()
+    combo =[""]
+    for record in records:
+        combo.append(str(record[0])+" | "+str(record[1]))
+    W_Export =tk.Tk()
+    W_Export.title("Export into file")
+    W_Export.minsize(400,400)
+    top=tk.LabelFrame(W_Export,relief="flat")
+    top.grid(row=0,column=0,pady =10)
+    Text= tk.LabelFrame(W_Export,relief="flat")
+    Text.grid(row=1,column=0,pady =10)
+    Exp_Combo = Combobox(top,state="readonly")
+    Exp_Combo['values']=combo
+    Exp_Combo.grid(row=0,column=0,pady=10)
+    tk.Button(top,text="Dowland data",command=ExportText).grid(row=0,column=1)
+    scroll=tk.Scrollbar(Text,orient=tk.VERTICAL,)
+    scroll.grid(row=0,column=1,sticky='nsew',pady=10)
+    Exp_Entry =tk.Text(Text,width=100,wrap=tk.WORD,undo=True,yscrollcommand=scroll.set)
+    Exp_Entry.grid(row=0,pady=10,padx=(10,0))
+    tk.Button(W_Export,text="Export Text into file",command=ExportSave).grid(row=3,pady=10,padx=200)
+    scroll.configure(command=Exp_Entry.yview)
+
+def ExportSave():
+    from tkinter.filedialog import asksaveasfile
+    file = asksaveasfile(defaultextension='.txt',filetypes=[("Text file",".txt"),("CSV file", ".csv"),("All files", ".*"),])
+    if file is None:
+        return None
+    file.close()
+    if file.name.count(".csv") == 1:
+        filetxt = str(Exp_Entry.get("1.0",tk.END))
+        filetxt =filetxt.replace(" ",";")
+        with open(file.name,'w',encoding='UTF-8') as SaveFile:
+            SaveFile.write(filetxt)    
+    else:
+        filetxt = str(Exp_Entry.get("1.0",tk.END))
+        with open(file.name,'w',encoding='UTF-8') as SaveFile:
+            SaveFile.write(filetxt)
+def ExportText():
+    Var_Exp =Exp_Combo.get()
+    Var_Exp=Var_Exp.split(" | ")
+    if Var_Exp[0] == "":
+        Exp_Entry.delete("1.0",tk.END)
+        Exp_Entry.insert(tk.END,"Molim odaberite Pritner.")
+        return False
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM CONFIG WHERE oid = " +str(Var_Exp[0]))
+    records = c.fetchall()
+    conn.commit()
+    config =records[0]
+    c= conn.cursor()
+    c.execute("SELECT * FROM EMAIL WHERE oid = " +str(config[4]))
+    records = c.fetchall()
+    email= records[0]
+    c= conn.cursor()
+    c.execute("SELECT * FROM MODEL WHERE oid = " +str(config[3]))
+    records = c.fetchall()
+    model= records[0]
+    c= conn.cursor()
+    IP = config[2].split("/")
+    conn.close()
+    data = ReadCounter(IP[0],model[2],model[3],model[4])
+    if data == False:
+        Exp_Entry.delete("1.0",tk.END)
+        Exp_Entry.insert(tk.END,"Greska. Program nije uspio preuzeti podakte sa printera. Molim provjeri te jel printer upaljen.")
+    else:
+        dataStr="State of Tonner for printer: "+str(config[1])+"\n"+data[4]
+        dataStr=dataStr+"\n\nState of Counter for Printer: "+str(config[1])+"\n\nTotal Counter\n"
+        dataStr= dataStr +data[0]+"\n\nCopy Counter\n"+data[1]+"\n\nPrint Counter\n"+data[2]+"\n\nScan Counter\n"+data[3]
+        Exp_Entry.delete("1.0",tk.END)
+        Exp_Entry.insert("1.0",dataStr)
+    
+#######################################
+###### Funkcije za Automatic ##########
+#######################################
+def my_ip ():
+    list_ip = subprocess.getoutput("ipconfig")
+    list_ip = list_ip.rsplit("\n")
+    rj =[]
+    for x in list_ip:
+        if x.count("Subnet Mask") == 1 :
+            x =x.split(": ")
+            a = "Mask"+str(x[1])
+            rj.append(a)
+        elif x.count("IPv4 Address") == 1:
+            x =x.split(": ")
+            a = "IP"+str(x[1])
+            rj.append(a)
+    return rj
+
+def Create_route ():
+    comp_host = my_ip()
+    comp_ip = comp_host[0].replace("IP","")
+    comp_mask = comp_host[1].replace("Mask","")
+    comp_interface = comp_ip+"/"+str(sum(bin(int(x)).count('1') for x in comp_mask.split('.')))
+    comp_interface =  ipaddress.IPv4Interface(comp_interface).network
+    host=[]
+    for x in list(ipaddress.ip_network(str(comp_interface)).hosts()):
+        if str(x) == comp_ip:
+            continue
+        else:
+            host.append(str(x))
+    host.remove(host[0]) # IP routera Beskorisno 
+    text='ping -n 1 -i 1 -w 1'
+    threds=[]
+    for x in host:
+        t = threading.Thread(target=Create_route_Ping,args=[text+" "+str(x)])
+        t.start()
+        threds.append(t)
+    for thread in threds:
+        thread.join()
+def Create_route_Ping(text):
+     try:
+         ret_code = subprocess.check_call (text,stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT )
+     except:
+         pass
+
+def ButtonAutomatic():
+    if messagebox.askyesno(title="Warning",message="Automatic search može potrajati ili čak srušiti program,\nAko model vašeg printera nije podržan. \nŽeljeli nastaviti ") == True:
+        Automatic()
+    else:
+        return None
+
+def Automatic ():
+    Create_route()
+    rj_arp = MacAddres()
+    comp_host = my_ip()
+    comp_ip = comp_host[0].replace("IP","")
+    comp_mask = comp_host[1].replace("Mask","")
+    comp_interface = comp_ip+"/"+str(sum(bin(int(x)).count('1') for x in comp_mask.split('.')))
+    comp_interface =  ipaddress.IPv4Interface(comp_interface).network
+    host=[]
+    for x in list(ipaddress.ip_network(str(comp_interface)).hosts()):
+            host.append(str(x))
+    host.pop(0)
+    rj =[]
+    for temp in rj_arp:
+        if host.count(temp[0]) > 0:
+            rj.append(temp)
+    Invalid =[]
+    Valid =[]
+    for temp in rj:
+        if temp[1][1].upper() == "2" or temp[1][1].upper() == "6" or temp[1][1].upper() == "A" or temp[1][1].upper() == "E":
+            Invalid.append(temp)
+        elif temp[1] [0:8].upper() == "08-00-86" or temp[1] [0:8].upper() == '00-50-AA' or temp[1] [0:8].upper() == '00-20-6B':
+            Valid.append(temp)
+        else:
+            Invalid.append(temp)
+    for temp in Invalid:
+        for x in range(0,2):
+           temp.append("Placeholder")
+        temp[1] = temp[0]
+        temp[2] = comp_mask
+        temp [0] = "Placeholder"
+    if len(Valid) == 0:
+        InvalidReport(Invalid)   
+        return 0
+    else:
+        for temp in Valid:
+            for x in range(0,2):
+                temp.append("Placeholder")
+            temp[1] = temp[0]
+            temp[2] = comp_mask
+            temp [0] = "Placeholder"
+        urls =[]
+        web = "http://"
+        path = Path_Pull()
+        Temp = ""
+        tempLista =[]
+        Path=""
+        for temp in Valid:
+            for x in path:
+                x = list(x)
+                if x[0][0] !=  "/":
+                    x[0] = "/"+str(x[0]) 
+                if x[1][0] !="/":
+                    x[1]="/"+str(x[1])
+                tempLista.append(web+str(temp[1])+str(x[0]))
+                tempLista.append(web+str(temp[1])+str(x[1]))
+                tempLista.append(str(x[2]))
+                urls.append(list(tempLista))
+                tempLista.clear()
+        rj =[]
+        threds =[]
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = [executor.submit(WebResponse,web[0],web[1],web[2])for web in urls]
+            for f in concurrent.futures.as_completed(results):
+                rj.append(f.result())
+        if rj.count(None)>0:
+            for x in range(0,rj.count(None)):
+                rj.remove(None)
+        for Temp in rj:
+            Temp = list(Temp)
+            Temp[0]=Temp[0].rsplit("/")
+            Temp[0].remove("")
+            for x in Valid:
+                if x[1].count(Temp[0][1]) == 1:
+                    x[0] = Temp[3]
+                    x[3] = Temp[2]
+                else:
+                    continue
+        UserSelected(Valid,Invalid)
+        
+def UserSelected(Potpis,Invalid=[]):
+    global AutomaticWindow
+    global BAutomaticInvalid
+    global BAutomaticSave
+    global BAutomaticExit
+    global LAutomaticHostname
+    global LAutomaticIP
+    global LAutomaticMask
+    global LAutomaticPath
+    AutomaticWindow = tk.Tk()
+    AutomaticWindow.title("Pronađeni uredaji")
+ 
+    tk.Label(AutomaticWindow,text="Ovi uredaji si pornadeni na vašoj mreži\n").grid(column= 0,row=0, columnspan=6)
+    br = 2
+    Model = read_combo()
+    Model = Model[1]
+    Model.remove("")
+    tk.Label(AutomaticWindow, text="Hostname",borderwidth=2, relief="raised",width=17).grid(column=0,row=1,padx=(10,0))
+    tk.Label(AutomaticWindow, text="IP addresa",borderwidth=2, relief="raised",width=17).grid(column=1,row=1)
+    tk.Label(AutomaticWindow, text="Subnet maska",borderwidth=2, relief="raised",width=17).grid(column=2,row=1)
+    tk.Label(AutomaticWindow, text="Model Pritnera",borderwidth=2, relief="raised",width=30).grid(column=3,row=1,columnspan=2)
+    tk.Label(AutomaticWindow, text="",borderwidth=2, relief="raised",width=17).grid(column=5,row=1)
+    for x in Potpis:
+        def func(potpis=x):
+            return Chosen(potpis)
+        tk.Label(AutomaticWindow, text=str(x[0])).grid(column =0 , row = br)
+        tk.Label(AutomaticWindow, text=str(x[1])).grid(column =1 , row = br)
+        tk.Label(AutomaticWindow, text=str(x[2])).grid(column =2 , row = br)
+        for l in Model:
+            l = l.split(" | ")
+            if l[0] == x[3]:
+                tk.Label(AutomaticWindow, text=str(l[1])).grid(column =3 , row = br,columnspan=2)
+        tk.Button(AutomaticWindow,command=func ,text="Upload",width = 17).grid(column= 5,row=br)
+        br = br +1
+        BAutomaticExit = tk.Button(AutomaticWindow,command=AutomaticWindow.destroy,text="Exit",width=60).grid(column= 1,row=21,columnspan=3,pady=20)
+  
+def Chosen(Potpis):
+    E_Conf_Host.delete(0,len(E_Conf_Host.get())) 
+    E_Conf_IP.delete(0,len(E_Conf_IP.get()))
+    E_Conf_Mask.delete(0,len(E_Conf_Mask.get()))
+
+    E_Conf_Host.insert(0,Potpis[0]) 
+    E_Conf_IP.insert(0,Potpis[1])
+    E_Conf_Mask.insert(0,Potpis[2])
+    try:
+        c_model.current(Potpis[3])
+    except:
+        c_model.current(0)
+        pass
+    AutomaticWindow.destroy()
+
+def InvalidReport(Invalid):
+    x =FuncInvalid(Invalid)
+    if x == 0:
+        messagebox.showwarning(title="Search Failed",message="Program nije pronašao printer na vašoj mreži\nProvjeri te jeli vaš model printera podržan na ovoj verziji programa, Jeli vas printer spojen na vašu mrežu ")
+    else:
+        UserSelected(x)
+
+def FuncInvalid (Invalid):
+    rj =[]
+    threds =[]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = [executor.submit(SocketResponse,ip[1])for ip in Invalid]
+    for f in concurrent.futures.as_completed(results):
+        rj.append(f.result())
+    for x in range(0,rj.count(None)):
+        rj.remove(None)
+    if len(rj) == 0:
+        return 0
+    trash = []
+    for x in Invalid:
+        for l in rj:
+            if x[1] == l[1]:
+                x[0] =l[0]
+                trash.append(x)
+                break
+            else:
+                continue
+
+    urls =[]
+    web = "http://"
+    path = Path_Pull()
+    Temp = ""
+    tempLista =[]
+    for temp in trash:
+        for x in path:
+            x = list(x)
+            if x[0][0] != "/":
+                x[0]="/"+str(x[0])
+            if x[1][0] !="/":
+                x[1]="/"+str(x[1])
+            tempLista.append(web+str(temp[1])+str(x[0]))
+            tempLista.append(web+str(temp[1])+str(x[1]))
+            tempLista.append(str(x[2]))
+            urls.append(list(tempLista))
+            tempLista.clear()
+    rj = []
+    threds= []
+
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = [executor.submit(WebResponse,web[0],web[1],web[2])for web in urls]
+            for f in concurrent.futures.as_completed(results):
+                rj.append(f.result())
+    if rj.count(None)>0:
+        for x in range(0,rj.count(None)):
+            rj.remove(None)
+    if rj == 0:
+        return 0 
+    for Temp in rj :
+        Temp = list(Temp)
+        Temp[0]=Temp[0].rsplit("/")
+        Temp[0].remove("")
+        for x in trash:
+            if x[1].count(Temp[0][1])==1:
+                x[0]=Temp[3]
+                x[3]=Temp[2]
+            else:
+                continue
+    return trash
+
+def MacAddres():
+    rj_arp =[]
+    list_ip = subprocess.getoutput("arp -a")
+    list_ip = list_ip.rsplit("\n")
+    list_ip.remove("")
+    list_ip.pop(0)
+    list_ip.pop(0)
+    for line in list_ip:
+        mac=line.rsplit("      ")
+        mac=mac[0].replace(" ","")+"///"+mac[1].replace(" ","")
+        mac= mac.replace("dynamic","")
+        mac  = mac.split("///")
+        rj_arp.append(mac)
+    return rj_arp
+     
+def  SocketResponse(IP):
+    try:
+        socket_hold = []
+        socket_hold = socket.gethostbyaddr(IP)
+        socket_hold = list(socket_hold)
+        socket_hold.pop(1)
+        socket_hold[0] = str(socket_hold[0])
+        socket_hold[1] = str(socket_hold[1])
+        socket_hold[1] = str(socket_hold[1][0])
+        if socket_hold[0].lower().count("iphone") == 1 or socket_hold[0].lower().count("desktop") == 1 or socket_hold[0].lower().count("galaxy"):
+            return None
+        else:
+            return socket_hold
+    except socket.herror:
+        Log_error(" code 0005er", "Failed to get info from socket IP:"+str(IP))
+        return None
+    except:
+        Log_error(" code 0005er", "Unknow error durring SocektResponsa for IP: "+str(IP))
+        return None
+
+def ReadInfo_ProductName(file="Dump.txt"):
+    file = open(file,"r")
+    lines= file.read()
+    file.close()
+    lines = lines[0].rsplit("\\n")
+    names=[]
+    line=""
+    for x in lines: 
+        if x.count("System") >=1 and x.count("ProductName") >= 1:
+            line = x
+            line = line.rsplit("<ProductName>")
+            line = line[1].rsplit("</ProductName>")
+            names.append("ProductName:"+str(line[0]))
+    return names
+
+def Path_Pull ():
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT PATH,WEB ,oid FROM MODEL")
+    records = c.fetchall()
+    conn.close()
+    Push = []
+    for record in records:
+        Push.append(record)
+    return Push
+
+#######################################
+###### Funkcije za Email WIndow #######
+#######################################
+def Email_window ():
+    global window_email
+    global e_email_name
+    global e_email_pass 
+    global l_email_id
+    global b_email_pass
+    global Comb_email_conf
+    ## var for hide / show Server +Buttons 
+    global l_server_name
+    global l_server_proc
+    global e_server_name
+    global e_server_proc
+    global b_server_new
+    global b_server_delete
+    window_email = tk.Tk()
+    window_email.title('Edit Email Page')
+    labelframe_email = tk.LabelFrame(window_email,)
+    labelframe_email.grid(column=0,row=0,padx=20,pady=10)
+    Buttonframe = tk.LabelFrame(window_email,)
+    Buttonframe.grid(column=0,row=1,padx=20,pady=10)
+    tk.Label(labelframe_email, text="ID_Email",borderwidth=2, relief="raised",width=17).grid(column=0,row=0)
+    l_email_id = tk.Label(labelframe_email, text='0',borderwidth=2, relief="raised",width=17)
+    l_email_id.grid(column=1,row=0)
+    l_email_name = tk.Label(labelframe_email, text="Email address:",borderwidth=2, relief="raised",width=17)
+    l_email_name.grid(column=0,row=1)
+    l_email_pass = tk.Label(labelframe_email, text="Password",borderwidth=2, relief="raised",width=17)
+    l_email_pass.grid(column=0,row=2)
+    e_email_name = tk.Entry(labelframe_email)
+    e_email_name.grid(column=1,row=1)
+    e_email_pass= tk.Entry(labelframe_email)
+    e_email_pass.grid(column=1,row=2)
+    e_email_pass.config(show="*")
+    ## Server part
+    tk.Label(labelframe_email, text="Selected Email Server",borderwidth=2, relief="raised",width=17).grid(column=0,row=3)
+    Comb_email_conf =Combobox(labelframe_email,width=17,state="readonly")
+    Comb_email_conf.grid(column=1,row=3)
+    b_email_pass=tk.Button(e_email_pass,text="*" ,command= Change_state)
+    b_email_pass.place(x=110,y=0)
+    Read_email_combo()
+    Comb_email_conf.bind("<<ComboboxSelected>>", selected_combo)
+    l_server_name = tk.Label(labelframe_email, text='Outgoing server',borderwidth=2, relief="raised",width=17)
+    l_server_proc = tk.Label(labelframe_email, text='Protokol',borderwidth=2, relief="raised",width=17)
+    
+    e_server_name = tk.Entry(labelframe_email)
+    e_server_proc = tk.Entry(labelframe_email)
+    
+    b_server_new = tk.Button(labelframe_email,text="Create new server",command=New_Ser,width = 17)
+    
+    b_server_delete =tk.Button(labelframe_email,text="Delete server",command=del_srw,width =17)
+    
+    ### Buttons 
+    tk.Button(labelframe_email,text="Config E-mail server",width=36,command=Show_Server_Config).grid(column=0,row=8,columnspan=2)
+    tk.Button(labelframe_email,text="Prev",width=17,command=prev_record_email).grid(column=0,row=9)
+    tk.Button(labelframe_email,text="Next",width=17,command=next_record_email).grid(column=1,row=9)
+    tk.Button(labelframe_email,text="Return on start",width=36,command=ID_Zero_1).grid(column=0,row=10,columnspan=2)
+    tk.Button(Buttonframe,text="Create new",command=submit_email).grid(column=0,row=0)
+    tk.Button(Buttonframe,text="Update",command=Update_email).grid(column=1,row=0)
+    tk.Button(Buttonframe,text="Delete" ,command = Delete_email).grid(column=2,row=0)
+
+
+def Read_email_combo ():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid,SERVER FROM SERVER")
+   records = c.fetchall()
+   email_str=[""]
+   for record in records:
+       email_str.append(str(record[0])+" | "+record[1])
+   Comb_email_conf['values'] = email_str
+    
+def Change_state () :
+    global  var_state
+    if var_state == 0 :
+        var_state = 1 
+        e_email_pass.config (show="")
+    else :
+        var_state = 0
+        e_email_pass.config (show="*")
+
+def Show_Server_Config () :
+    global var_Server
+    if var_Server == 0 :
+        var_Server = 1
+        l_server_name.grid_forget()
+        l_server_proc.grid_forget()
+        e_server_name.grid_forget()
+        e_server_proc.grid_forget()
+        b_server_new.grid_forget()
+        b_server_delete.grid_forget()
+        window_email.deiconify()
+    else: 
+        var_Server = 0
+        l_server_name.grid(column=0,row=4)
+        l_server_proc.grid(column=0,row=5)
+        e_server_name.grid(column = 1 ,row =4)
+        e_server_proc.grid(column = 1 ,row =5)
+        b_server_new.grid(column=1,row=6)
+        b_server_delete.grid(column=0,row=6)
+        window_email.deiconify()
+
+def selected_combo (test):
+    e_server_name.delete(0, len(e_server_name.get()))
+    e_server_proc.delete(0,len(e_server_proc.get()))
+    var_txt_ser = Comb_email_conf.get()
+    var_txt_ser = var_txt_ser.split(" | ")
+    if  var_txt_ser [0] == "":
+        e_server_name.delete(0, len(e_server_name.get()))
+        e_server_proc.delete(0,len(e_server_proc.get()))
+        return False
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM SERVER WHERE OID = "+str(var_txt_ser[0]) )
+    records = c.fetchall()
+    e_server_name.insert(0, records[0][1])
+    e_server_proc.insert(0,records[0][2])
+
+def New_Ser ():
+    var_ID =Return_id(4)
+    if len(var_ID) == 0 or len(var_ID) == 1 and var_ID[0]>1:
+        id= 1
+    elif len(var_ID) == 1 and var_ID[0] == 1:
+        id = 2
+    else:
+        for x in range(0,len(var_ID)):
+            b=len(var_ID)-1
+            if x == b :
+                id = var_ID[x] +1
+                break
+            elif var_ID[x]+1 == var_ID[x+1]:
+                id = var_ID[x] +1
+            else:
+                id = var_ID[x]+1
+                break
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("INSERT INTO SERVER VALUES (:OID,:naziv, :proc) ",
+            {
+                'OID' : id,
+                'naziv':  e_server_name.get(),
+                'proc': e_server_proc.get()
+            })
+    e_server_name.delete(0,len(e_server_name.get()))
+    e_server_proc.delete(0,len(e_server_proc.get()))
+    Comb_email_conf.current(0)
+    conn.commit()
+    conn.close()
+    Read_email_combo()
+
+def Update_Srw(id):
+    conn = sqlite3.connect('Config.db')
+    c= conn.cursor()
+    c.execute("UPDATE EMAIL SET CONF_E_ID= :srw  WHERE OID = :id" ,
+              {
+               'id' : id,
+               'srw' :  "1"
+                 }
+              )
+    conn.commit()
+    conn.close()
+
+def del_srw ():
+    var_txt_ser = Comb_email_conf.get()
+    var_txt_ser = var_txt_ser.split(" | ")
+    if str(var_txt_ser[0]) == "1":
+        messagebox.showwarning(title="Nemoguce izbrisati" , message = "Nemoguce je izbrisati server (default server) :"+str(var_txt_ser[1]))
+        return False
+    elif str(var_txt_ser[0]) == "":
+        messagebox.showwarning(title="Nemoguce izbrisati" , message = "Molim odaberite server")
+        return False
+    conn = sqlite3.connect('Config.db')
+    Conflicted_ID =DatabaseIndex_check(str(var_txt_ser[0]),4)
+    msg=""
+    if len(Conflicted_ID)>0 :
+        for x in Conflicted_ID:
+            c= conn.cursor()
+            c.execute("SELECT * FROM EMAIL WHERE oid= "+ str(x) )
+            records =c.fetchall() 
+            msg +=" OID : "+ str(records[0][0]) + " Email : "+ str(records[0][1])+" Koriste Server koji zelite izbrisati \n Ukoliko nastavite ti emailvi ce se promijeniti na Defaltni server ?"
+        if messagebox.askyesno(title="Error", message=msg)  == True :
+            for x in records:
+                Update_Srw(x[0])
+            c = conn.cursor()
+            c.execute("DELETE FROM SERVER   WHERE oid = " + str(var_txt_ser[0]))
+            e_server_name.delete(0,len(e_server_name.get()))
+            e_server_proc.delete(0,len(e_server_proc.get()))
+            Comb_email_conf.current(0)
+            selected_combo("0")
+            conn.commit()
+            conn.close()
+            Read_email_combo()
+            window_email.deiconify()
+            ID_Zero_1()
+        else:
+            return False
+    else:
+        e_server_name.delete(0,len(e_server_name.get()))
+        e_server_proc.delete(0,len(e_server_proc.get()))
+        c = conn.cursor()
+        c.execute("DELETE FROM SERVER   WHERE oid = " + str(var_txt_ser[0]))
+        conn.commit()
+        conn.close()
+        Read_email_combo()
+        Comb_email_conf.current(0)
+        selected_combo("0")
+        window_email.deiconify()
+        ID_Zero_1()
+
+def next_record_email():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid FROM EMAIL" )
+   id_records =c.fetchall() 
+   conn.commit()
+   e_email_name.delete(0,len(e_email_name.get()))
+   e_email_pass.delete(0,len(e_email_pass.get()))
+   b=int(l_email_id.cget('text')) + 1
+   max=0
+   for x in id_records:
+       if int(x[0])> max:
+           max=x[0]
+       
+   if b>max :
+        l_email_id.config(text=str(0))
+   else:
+        l_email_id.config(text=str(b))
+   c= conn.cursor()
+   c.execute("SELECT * FROM EMAIL WHERE oid = " + l_email_id.cget('text'))
+   records = c.fetchall()
+   conn.commit()
+   conn.close()
+   if l_email_id.cget('text') == "0" :
+       Comb_email_conf.current(0)
+   else:
+        Comb_email_conf.current(records[0][3])
+   for record in records:
+       e_email_name.insert(0, record[1])
+       e_email_pass.insert(0, TimeToWaste(record[2]))
+   selected_combo("0")
+def prev_record_email():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid FROM EMAIL" )
+   id_records =c.fetchall() 
+
+   e_email_name.delete(0,len(e_email_name.get()))
+   e_email_pass.delete(0,len(e_email_pass.get()))
+   b=int(l_email_id.cget('text')) - 1
+   max=0
+   for x in id_records:
+       if int(x[0])> max:
+           max=x[0]
+       
+   if b<0 :
+        b = max
+
+   l_email_id.config(text=str(b))
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT * FROM EMAIL WHERE oid = " + l_email_id.cget('text'))
+   records = c.fetchall()
+   conn.commit()
+   conn.close()
+   if l_email_id.cget('text') == "0" :
+       Comb_email_conf.current(0)
+   else:
+        Comb_email_conf.current(records[0][3])
+   for record in records:
+       e_email_name.insert(0, record[1])
+       e_email_pass.insert(0, TimeToWaste(record[2]))
+   selected_combo("0")
+def submit_email():
+    var_ID =Return_id(3)
+    if len(var_ID) == 0 or len(var_ID) >= 1 and var_ID[0]>1:
+        id= 1
+    elif len(var_ID) == 1 and var_ID[0] == 1:
+        id = 2
+    else:
+        for x in range(0,len(var_ID)):
+            b=len(var_ID)-1
+            if x == b :
+                id = var_ID[x] +1
+                break
+            elif var_ID[x]+1 == var_ID[x+1]:
+                id = var_ID[x] +1
+            else:
+                id = var_ID[x]+1
+                break
+    Var_C = Comb_email_conf.get()
+    Var_C=Var_C.split(" | ")
+    if Var_C[0] == "" :
+        Var_C[0] = 1
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("INSERT INTO EMAIL VALUES (:OID,:email, :pass,:ser) ",
+            {
+                'OID' : id,
+                'email': e_email_name.get(),
+                'pass': WasteOfTime(e_email_pass.get()),
+                'ser' : str(Var_C[0])
+            })
+    conn.commit()
+    conn.close()
+    e_email_name.delete(0,len(e_email_name.get()))
+    e_email_pass.delete(0,len(e_email_pass.get()))
+    Comb_email_conf.current(0)
+    selected_combo("0")
+    read_combo()
+
+def Update_email():
+    Var_C = Comb_email_conf.get()
+    Var_C=Var_C.split(" | ")
+    if Var_C[0] == "" :
+        Var_C[0] = 1
+    conn = sqlite3.connect('Config.db')
+    c = conn.cursor()
+    c.execute("UPDATE EMAIL SET ADDRES = :email , PASS = :pass , CONF_E_ID= :srw  WHERE OID = :id" ,
+              {
+               'email':e_email_name.get() ,
+               'pass':WasteOfTime(e_email_pass.get()) ,
+               'id': str(l_email_id.cget('text')),
+               'srw' :  str(Var_C[0])
+                 }
+              )
+    conn.commit()
+    conn.close()
+    Refresh()
+
+def Delete_email ():
+    conn = sqlite3.connect('Config.db')
+    if str(l_email_id.cget('text')) == "0":
+        messagebox.showwarning(title="Nemoguce izbrisati", message=" Nemoguce izbrisati ")
+        window_email.deiconify()
+        return False
+
+    Conflicted_ID =DatabaseIndex_check(str(l_email_id.cget('text')),2)
+    msg=""
+    if len(Conflicted_ID)>0 :
+        for x in range(0, len(Conflicted_ID)):
+            Conf_lista = Return_config(Conflicted_ID[x])
+            msg += "ID : "+str(Conf_lista[0]) + " Naziv : " + str(Conf_lista[1]) +" IP Adresa : " +str(Conf_lista[2]) + " Model : "+ str(Conf_lista[3]) + " E-Mail Addresa : " + str(Conf_lista[4])+ " Reciver E-mail Addresa : "+str(Conf_lista[5]) +" Time : "+str(Conf_lista[6])+"\n"    
+        if messagebox.askyesno(title="Error", message="Ukoliko zelite izrisati taj E-mail usput ce te izbrisati ovu printer Konfiguraciju: \n"+msg+" Jel ste sigruni da li hocete izbrisati tu konfiguraciju  ?")  == True :
+            for b in range(0, len(Conflicted_ID)):
+                c = conn.cursor()
+                c.execute("DELETE FROM CONFIG WHERE oid = " + str(Conflicted_ID[b]))
+          
+            c = conn.cursor()
+            c.execute("DELETE FROM EMAIL WHERE oid = " + str(l_email_id.cget('text')))
+            e_email_name.delete(0,len(e_email_name.get()))
+            e_email_pass.delete(0,len(e_email_pass.get()))
+            l_email_id.config(text=str(0))
+            Comb_email_conf.current(0)
+            selected_combo("0")
+            conn.commit()
+            conn.close()
+            app.destroy()
+            window_email.destroy()
+            Email_window()
+            RSCA ()
+        else:
+            return False
+    else:
+        c = conn.cursor()
+        c.execute("DELETE FROM EMAIL WHERE oid = " + str(l_email_id.cget('text')))
+        e_email_name.delete(0,len(e_email_name.get()))
+        e_email_pass.delete(0,len(e_email_pass.get()))
+        l_email_id.config(text=str(0))
+        Comb_email_conf.current(0)
+        selected_combo("0")
+
+
+
+    read_combo()
+    conn.commit()
+    conn.close()
     
 
+    
 
--#-RSC_New
-Test
+#######################################
+########## END DEF FOR EMAIL ##########
+#######################################
+#######################################
+###### Funkcije za MODEL WIndow #######
+#######################################
+def Model_window ():
+    global e_model_name
+    global e_model_pass 
+    global e_model_File
+    global l_model_id
+    global l_model_name
+    global l_model_pass
+    window_model = tk.Tk()
+    window_model.title('Edit Model Page')
+    labelframe_model = tk.LabelFrame(window_model,)
+    labelframe_model.grid(column=0,row=0,padx=20,pady=10)
+    Buttonframe = tk.LabelFrame(window_model,)
+    Buttonframe.grid(column=0,row=1,padx=20,pady=10)
+    tk.Label(labelframe_model, text="ID_Modela",borderwidth=2, relief="raised",width=17).grid(column=0,row=0)
+    l_model_id = tk.Label(labelframe_model, text='0',borderwidth=2, relief="raised",width=17)
+    l_model_id.grid(column=1,row=0)
+    l_model_name = tk.Label(labelframe_model, text="Naziv Modela:",borderwidth=2, relief="raised",width=17)
+    l_model_name.grid(column=0,row=1)
+    l_model_pass = tk.Label(labelframe_model, text="File Path For Counter: ",borderwidth=2, relief="raised",width=17)
+    l_model_pass.grid(column=0,row=2)
+    l_model_File = tk.Label(labelframe_model, text="File Path For Tonner: ",borderwidth=2, relief="raised",width=17)
+    l_model_File.grid(column=0,row=3)
+    e_model_name = tk.Entry(labelframe_model)
+    e_model_name.grid(column=1,row=1)
+    e_model_pass= tk.Entry(labelframe_model)
+    e_model_pass.grid(column=1,row=2)
+    e_model_File= tk.Entry(labelframe_model)
+    e_model_File.grid(column=1,row=3)
+    tk.Button(labelframe_model,text="Prev",width=17,command=prev_record_model).grid(column=0,row=4)
+    tk.Button(labelframe_model,text="Next",width=17,command=next_record_model).grid(column=1,row=4)
+    tk.Button(labelframe_model,text="Return on start",width=36,command=ID_Zero_0).grid(column=0,row=5,columnspan=2)
 
--#-Updater
-test
+    tk.Button(Buttonframe,text="Create new",command=submit_model).grid(column=0,row=0)
+    tk.Button(Buttonframe,text="Update",command=Update_Model).grid(column=1,row=0)
+    tk.Button(Buttonframe,text="Delete",command= Delete_Model).grid(column=2,row=0)
 
--#-Send_email
-testsa
+def next_record_model():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid FROM MODEL" )
+   id_records =c.fetchall() 
+   conn.commit()
+   e_model_name.delete(0,len(e_model_name.get()))
+   e_model_pass.delete(0,len(e_model_pass.get()))
+   e_model_File.delete(0,len(e_model_File.get()))
+   b=int(l_model_id.cget('text')) + 1
+   max=0
+   for x in id_records:
+       if int(x[0])> max:
+           max=x[0]
+       
+   if b>max :
+        l_model_id.config(text=str(0))
+   else:
+        l_model_id.config(text=str(b))
+
+   c.execute("SELECT * FROM MODEL WHERE oid = " + l_model_id.cget('text'))
+   records = c.fetchall()
+   conn.commit()
+   conn.close()
+  
+   for record in records:
+       e_model_name.insert(0, record[1])
+       e_model_pass.insert(0, record[2])
+       e_model_File.insert(0, record[3])
+
+def prev_record_model():
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT oid FROM EMAIL" )
+   id_records =c.fetchall() 
+   e_model_name.delete(0,len(e_model_name.get()))
+   e_model_pass.delete(0,len(e_model_pass.get()))
+   e_model_File.delete(0,len(e_model_File.get()))
+   b=int(l_model_id.cget('text')) - 1
+   max=0
+   for x in id_records:
+       if int(x[0])> max:
+           max=x[0]
+       
+   if b<0 :
+        b = max
+   l_model_id.config(text=str(b))
+   conn=sqlite3.connect("Config.db")
+   c= conn.cursor()
+   c.execute("SELECT * FROM MODEL WHERE oid = " + l_model_id.cget('text'))
+   records = c.fetchall()
+   conn.commit()
+   conn.close()
+  
+   for record in records:
+       e_model_name.insert(0, record[1])
+       e_model_pass.insert(0, record[2])
+       e_model_File.insert(0, record[3])
+
+def submit_model():
+    var_ID =Return_id(2)
+    if len(var_ID) == 0 or len(var_ID) >= 1 and var_ID[0]>1:
+        id= 1
+    elif len(var_ID) == 1 and var_ID[0] == 1:
+        id = 2
+    else:
+        for x in range(0,len(var_ID)):
+            b=len(var_ID)-1
+            if x == b :
+                id = var_ID[x] +1
+                break
+            elif var_ID[x]+1 == var_ID[x+1]:
+                id = var_ID[x] +1
+            else:
+                id = var_ID[x]+1
+                break
+
+    WebPage = str(e_model_pass.get())
+    WebPage = WebPage.split("/")
+    WebPage[-1] ="index.html"
+    a =""
+    for x in WebPage:
+        a =a +"/"+str(x)
+    
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("INSERT INTO MODEL VALUES (:id,:Naziv, :path,:data,:web)",
+            {
+                'id' : id ,
+                'Naziv': e_model_name.get(),
+                'path': e_model_pass.get(),
+                'data':e_model_File.get(),
+                'web' : a
+            })
+    conn.commit()
+    conn.close()
+    e_model_name.delete(0,len(e_model_name.get()))
+    e_model_pass.delete(0,len(e_model_pass.get()))
+    e_model_File.delete(0,len(e_model_File.get()))
+    read_combo()
+
+def Update_Model () :
+    WebPage = str(e_model_pass.get())
+    WebPage = WebPage.split("/")
+    WebPage[-1] ="index.html"
+    a =""
+    for x in WebPage:
+        a =a +"/"+str(x)
+    conn = sqlite3.connect('Config.db')
+    c = conn.cursor()
+    c.execute("UPDATE MODEL SET NAZIV = :Ime , PATH = :File , WEBPATH=:Tonner ,WEB= :Page  WHERE OID = :id" ,
+              {
+               'Ime':e_model_name.get() ,
+               'File':e_model_pass.get() ,
+               'Tonner':e_model_File.get(),
+               'Page' :a,
+               'id': str(l_email_id.cget('text'))
+                 }
+              )
+    conn.commit()
+    conn.close()
+    Refresh()
+
+def Delete_Model():
+    conn = sqlite3.connect('Config.db')
+    if str(l_model_id.cget('text')) == "0":
+        messagebox.showwarning(title="Nemoguce izbrisati", message=" Nemoguce izbrisati ")
+        window_model.deiconify()
+        return False
+
+
+    Conflicted_ID =DatabaseIndex_check(str(l_model_id.cget('text')),1)
+    msg=""
+    if len(Conflicted_ID)>0 :
+        for x in range(0, len(Conflicted_ID)):
+            Conf_lista = Return_config(Conflicted_ID[x])
+            msg += "ID : "+str(Conf_lista[0]) + " Naziv : " + str(Conf_lista[1]) +" IP Adresa : " +str(Conf_lista[2]) + " Model : "+ str(Conf_lista[3]) + " E-Mail Addresa : " + str(Conf_lista[4])+ " Reciver E-mail Addresa : "+str(Conf_lista[5]) +" Time : "+str(Conf_lista[6])+"\n"    
+        if messagebox.askyesno(title="Error", message="Ukoliko zelite izrisati taj Model usput ce te izbrisati ovu printer Konfiguraciju: \n"+msg+" Jel ste sigruni da li hocete izbrisati tu konfiguraciju  ?")  == True :
+            for x in range(0, len(Conflicted_ID)):
+                c = conn.cursor()
+                c.execute("DELETE FROM CONFIG WHERE oid = " + str(Conflicted_ID[x]))
+          
+            c = conn.cursor()
+            c.execute("DELETE FROM MODEL WHERE oid = " + str(l_model_id.cget('text')))
+            e_model_name.delete(0,len(e_model_name.get()))
+            e_model_pass.delete(0,len(e_model_pass.get()))
+            e_model_File.delete(0,len(e_model_File.get()))
+            l_model_id.config(text=str(0))
+            conn.commit()
+            conn.close()
+            app.destroy()
+            RSCA ()
+        else:
+            return False
+    else:
+        c = conn.cursor()
+        c.execute("DELETE FROM MODEL WHERE oid = " + str(l_model_id.cget('text')))
+        e_model_name.delete(0,len(e_model_name.get()))
+        e_model_pass.delete(0,len(e_model_pass.get()))
+        e_model_File.delete(0,len(e_model_File.get()))
+        l_model_id.config(text=str(0))
+    conn.commit()
+    conn.close()
+    read_combo()
+
+
+def ID_Zero_0 ():
+    e_model_name.delete(0,len(e_model_name.get()))
+    e_model_pass.delete(0,len(e_model_pass.get()))
+    e_model_File.delete(0,len(e_model_File.get()))
+    l_model_id.config(text="0")
+
+def ID_Zero_1 ():
+    e_email_name.delete(0,len(e_email_name.get()))
+    e_email_pass.delete(0,len(e_email_pass.get()))
+    l_email_id.config(text="0")
+
+#######################################
+########## END DEF FOR MODEL ##########
+#######################################
+
+#######################################
+##########     TIME MODE     ##########
+#######################################
+def Model_time ():
+    global window_time
+    global e_naziv
+    global e_year
+    global e_mm
+    global e_dd
+    global e_hh
+    global e_min 
+    global e_ss
+    global e_test
+    global labelframeTime
+    window_time = tk.Tk()
+    window_time.title('Edit Time Page')
+    labelframeTime = tk.LabelFrame(window_time,)
+    labelframeTime.grid(column=0,row=0,padx=20,pady=10)
+    Buttonframe = tk.LabelFrame(window_time,)
+    Buttonframe.grid(column=0,row=1,padx=20,pady=10)
+    tk.Label(labelframeTime, text="NAZIV",borderwidth=2, relief="raised",width=17).grid(column=0,row=0)
+    tk.Label(labelframeTime, text="YYYY",borderwidth=2, relief="raised",width=17).grid(column=1,row=0)
+    tk.Label(labelframeTime, text="MM",borderwidth=2, relief="raised",width=17).grid(column=2,row=0)
+    tk.Label(labelframeTime, text="DD",borderwidth=2, relief="raised",width=17).grid(column=3,row=0)
+    tk.Label(labelframeTime, text="HH",borderwidth=2, relief="raised",width=17).grid(column=4,row=0)
+    tk.Label(labelframeTime, text="MIN",borderwidth=2, relief="raised",width=17).grid(column=5,row=0)
+    tk.Label(labelframeTime, text="SS",borderwidth=2, relief="raised",width=17).grid(column=6,row=0)
+    tk.Label(labelframeTime, text="Options",borderwidth=2, relief="raised",width=21).grid(column=7,row=0,columnspan=3)
+    tk.Label(labelframeTime, text=" ",borderwidth=2, relief="raised",width=21).grid(column=10,row=0,columnspan=2)
+   ## Test for print data in time window
+    ReadTableTime()
+
+
+   ## Entry for time
+    e_naziv = tk.Entry(labelframeTime,justify='center')
+    e_year = tk.Entry(labelframeTime,justify='center')
+    e_mm = tk.Entry(labelframeTime,justify='center')
+    e_dd = tk.Entry(labelframeTime,justify='center')
+    e_hh = tk.Entry(labelframeTime,justify='center')
+    e_min = tk.Entry(labelframeTime,justify='center')
+    e_ss  = tk.Entry(labelframeTime,justify='center')
+    e_naziv.grid(column=0,row=20)
+    e_year.grid(column=1,row=20)
+    e_mm.grid(column=2,row=20)
+    e_dd.grid(column=3,row=20)
+    e_hh.grid(column=4,row=20)
+    e_min.grid(column=5,row=20)
+    e_ss .grid(column=6,row=20)
+    tk.Button(labelframeTime,text="Add New Time" ,command=submit_time,width=21).grid(column=7,row=20,columnspan=3)
+    tk.Button(labelframeTime,text="Add Exeact Time" ,command=SubmitTime_Exact,width=21).grid(column=10,row=20,columnspan=2)
+
+
+
+
+
+def UpdateTime(id):
+    TimeData = str(e_year.get())+"-"+str(e_mm.get())+"-"+str(e_dd.get())+" "+str(e_hh.get())+":"+str(e_min.get())+":"+str(e_ss.get())
+    conn = sqlite3.connect('Config.db')
+    c = conn.cursor()
+    c.execute("UPDATE TIME SET NAZIV = :naziv , DATA = :data   WHERE OID = :id" ,
+              {
+               'naziv':e_naziv.get() ,
+               'data':TimeData ,
+               'id': str(id)
+                 }
+              )
+    conn.commit()
+    conn.close()
+    ReadTableTime()
+    read_combo()
+
+
+def DeleteTime(id):
+    conn = sqlite3.connect('Config.db')
+    if str(id) == "0":
+        messagebox.showwarning(title="Nemoguce izbrisati", message=" Nemoguce izbrisati ")
+        window_email.deiconify()
+        return False
+
+    Conflicted_ID =DatabaseIndex_check(id,3)
+    msg=""
+    if len(Conflicted_ID)>0 :
+        for x in range(0, len(Conflicted_ID)):
+            Conf_lista = Return_config(Conflicted_ID[x])
+            msg += "ID : "+str(Conf_lista[0]) + " Naziv : " + str(Conf_lista[1]) +" IP Adresa : " +str(Conf_lista[2]) + " Model : "+ str(Conf_lista[3]) + " E-Mail Addresa : " + str(Conf_lista[4])+ " Reciver E-mail Addresa : "+str(Conf_lista[5]) +" Time : "+str(Conf_lista[6])+"\n"    
+        if messagebox.askyesno(title="Error", message="Ukoliko zelite izrisati taj vrijeme usput ce te izbrisati ovu printer Konfiguraciju: \n"+msg+" Jel ste sigruni da li hocete izbrisati tu konfiguraciju  ?")  == True :
+            for x in range(0, len(Conflicted_ID)):
+                c = conn.cursor()
+                c.execute("DELETE FROM CONFIG WHERE oid = " + str(Conflicted_ID[x]))
+          
+            c = conn.cursor()
+            c.execute("DELETE FROM TIME WHERE oid = " + str(id))
+            conn.commit()
+            conn.close()
+            app.destroy()
+            window_time.destroy()
+            Model_time()
+            ReadTableTime()
+            RSCA ()
+        else:
+            return False
+    else:
+        c = conn.cursor()
+        c.execute("DELETE FROM TIME WHERE oid = " + str(id))
+        window_time.destroy()
+        Model_time()
+        ReadTableTime()
+
+
+
+
+    conn.commit()
+    conn.close()
+    window_time.destroy()
+    Model_time()
+    ReadTableTime()
+    read_combo()
+
+def Copy_Time(id):
+    e_year.delete(0,len(e_year.get()))
+    e_naziv.delete(0,len(e_naziv.get()))
+    e_mm.delete(0,len(e_mm.get()))
+    e_dd.delete(0,len(e_dd.get()))
+    e_hh.delete(0,len(e_hh.get()))
+    e_min.delete(0,len(e_min.get()))
+    e_ss.delete(0,len(e_ss.get()))
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("SELECT * FROM TIME WHERE oid = " +str(id))
+    records = c.fetchall()
+    conn.commit()
+    conn.close()
+    day=conv_time(records[0][2])
+    sec=convTime_Sec(records[0][2])
+    e_year.insert(0,day[0])
+    e_naziv.insert(0,records[0][1])
+    e_mm.insert(0,day[1])
+    e_dd.insert(0,day[2])
+    e_hh.insert(0,sec[0])
+    e_min.insert(0,sec[1])
+    e_ss.insert(0,sec[2])
+
+def ReadTableTime(): 
+     conn=sqlite3.connect("Config.db")
+     c= conn.cursor()
+     c.execute("SELECT * FROM TIME " )
+     records = c.fetchall()
+     br=1
+     for record in records:
+         def func(x=record[0]):
+             return DeleteTime(x)
+         def func1(x=record[0]):
+             return UpdateTime(x)
+         def func2(x=record[0]):
+             return Copy_Time(x)
+         def func3 (x=record[0]):
+             pass
+         day=conv_time(record[2])
+         sec=convTime_Sec(record[2])
+         tk.Label(labelframeTime, text=record[1],borderwidth=2,width=17).grid(column=0,row=br)
+         tk.Label(labelframeTime, text=day[0],borderwidth=2,width=17).grid(column=1,row=br)
+         tk.Label(labelframeTime, text=day[1],borderwidth=2,width=17).grid(column=2,row=br)
+         tk.Label(labelframeTime, text=day[2],borderwidth=2,width=17).grid(column=3,row=br)
+         tk.Label(labelframeTime, text=sec[0],borderwidth=2,width=17).grid(column=4,row=br)
+         tk.Label(labelframeTime, text=sec[1],borderwidth=2,width=17).grid(column=5,row=br)
+         tk.Label(labelframeTime, text=sec[2],borderwidth=2,width=17).grid(column=6,row=br)
+         tk.Button (labelframeTime,text="Delete",command=func,width=6).grid(column=7,row=br)
+         tk.Button (labelframeTime,text="Update",command=func1,width=6).grid(column=8,row=br)
+         tk.Button (labelframeTime,text="Copy",command=func2,width=6).grid(column=9,row=br)
+         if record[3] == 1 : 
+             tk.Label(labelframeTime,text="Email will send on this date " ,borderwidth=2,width=21).grid(column=11,row=br,columnspan=2)
+
+         br+=1
+     conn.commit()
+     conn.close()
+
+def SubmitTime_Exact():
+    check_time=CheckData_Time(str(e_year.get()),str(e_mm.get()),str(e_dd.get()),str(e_hh.get()),str(e_min.get()),str(e_ss.get()))
+    if check_time == 1:
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Mjesec")
+        window_time.deiconify()
+        e_mm.delete(0,len(e_mm.get()))
+        return False
+    elif check_time == 2 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Dan")
+        window_time.deiconify()
+        e_dd.delete(0,len(e_dd.get()))
+        return False
+    elif check_time == 3 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Sat")
+        window_time.deiconify()
+        e_hh.delete(0,len(e_hh.get()))
+        return False
+    elif  check_time == 4 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste minute")
+        window_time.deiconify()
+        e_min.delete(0,len(e_min.get()))
+        return False
+    elif  check_time == 0 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Datum")
+        window_time.deiconify()
+        e_year.delete(0,len(e_year.get()))
+        e_mm.delete(0,len(e_mm.get()))
+        e_dd.delete(0,len(e_dd.get()))
+        e_hh.delete(0,len(e_hh.get()))
+        e_min.delete(0,len(e_min.get()))
+        e_ss.delete(0,len(e_ss.get()))
+        e_naziv.delete(0,len(e_naziv.get()))
+        return False
+    elif check_time == 5 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste sekunde ")
+        window_time.deiconify()
+        e_ss.delete(0,len(e_ss.get()))
+        return False
+
+    check_time = check_time.split(" ")
+
+    time = time_sec(str(datetime.now()))
+    TimeData = check_time[0]+"-"+check_time[1]+"-"+check_time[2]+" "+check_time[3]+":"+check_time[4]+":"+check_time[5]
+    time1= time_sec(TimeData)
+    if time1 < time :
+        messagebox.showwarning(title="Greska Datuma", message="Datum koji se odabrali je prošao")
+        window_time.deiconify()
+        e_year.delete(0,len(e_year.get()))
+        e_naziv.delete(0,len(e_naziv.get()))
+        e_mm.delete(0,len(e_mm.get()))
+        e_dd.delete(0,len(e_dd.get()))
+        e_hh.delete(0,len(e_hh.get()))
+        e_min.delete(0,len(e_min.get()))
+        e_ss.delete(0,len(e_ss.get()))
+        return False
+    var_ID =Return_id(1)
+    if len(var_ID) == 0 or len(var_ID) >= 1 and var_ID[0]>1:
+        id= 1
+    elif len(var_ID) == 1 and var_ID[0] == 1:
+        id = 2
+    else:
+        for x in range(0,len(var_ID)):
+            b=len(var_ID)-1
+            if x == b :
+                id = var_ID[x] +1
+                break
+            elif var_ID[x]+1 == var_ID[x+1]:
+                id = var_ID[x] +1
+            else:
+                id = var_ID[x]+1
+                break
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("INSERT INTO time VALUES (:id,:naziv, :data, :time)",
+            {
+                'id' : id,
+                'naziv': e_naziv.get(),
+                'data': TimeData,
+                'time' : 1
+            })
+    conn.commit()
+    conn.close()
+    e_year.delete(0,len(e_year.get()))
+    e_naziv.delete(0,len(e_naziv.get()))
+    e_mm.delete(0,len(e_mm.get()))
+    e_dd.delete(0,len(e_dd.get()))
+    e_hh.delete(0,len(e_hh.get()))
+    e_min.delete(0,len(e_min.get()))
+    e_ss.delete(0,len(e_ss.get()))
+    read_combo()
+    ReadTableTime()
+    window_time.update()
+
+
+
+def submit_time():
+    check_time=CheckData_TimeFalse(str(e_year.get()),str(e_mm.get()),str(e_dd.get()),str(e_hh.get()),str(e_min.get()),str(e_ss.get()))
+    if check_time == 1:
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Mjesec")
+        window_time.deiconify()
+        e_mm.delete(0,len(e_mm.get()))
+        return False
+    elif check_time == 2 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Dan")
+        window_time.deiconify()
+        e_dd.delete(0,len(e_dd.get()))
+        return False
+    elif check_time == 3 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste Sat")
+        window_time.deiconify()
+        e_hh.delete(0,len(e_hh.get()))
+        return False
+    elif  check_time == 4 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste minute")
+        window_time.deiconify()
+        e_min.delete(0,len(e_min.get()))
+        return False
+    elif  check_time == 5 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste sekunde")
+        window_time.deiconify()
+        e_ss.delete(0,len(e_ss.get()))
+        return False
+    elif  check_time == 0 :
+        messagebox.showwarning(title="Greska Datuma", message="Molim ponovno upiste godinu")
+        window_time.deiconify()
+        e_year.delete(0,len(e_year.get()))
+        return False
+
+    check_time = check_time.split(" ")
+    
+    TimeData = check_time[0]+"-"+check_time[1]+"-"+check_time[2]+" "+check_time[3]+":"+check_time[4]+":"+check_time[5]
+    var_ID =Return_id(1)
+    if len(var_ID) == 0 or len(var_ID) >= 1 and var_ID[0]>1:
+        id= 1
+    elif len(var_ID) == 1 and var_ID[0] == 1:
+        id = 2
+    else:
+        for x in range(0,len(var_ID)):
+            b=len(var_ID)-1
+            if x == b :
+                id = var_ID[x] +1
+                break
+            elif var_ID[x]+1 == var_ID[x+1]:
+                id = var_ID[x] +1
+            else:
+                id = var_ID[x]+1
+                break
+    conn=sqlite3.connect("Config.db")
+    c= conn.cursor()
+    c.execute("INSERT INTO time VALUES (:id,:naziv, :data, :time)",
+            {
+                'id':id,
+                'naziv': e_naziv.get(),
+                'data': TimeData,
+                'time' : 0
+            })
+    conn.commit()
+    conn.close()
+    e_year.delete(0,len(e_year.get()))
+    e_naziv.delete(0,len(e_naziv.get()))
+    e_mm.delete(0,len(e_mm.get()))
+    e_dd.delete(0,len(e_dd.get()))
+    e_hh.delete(0,len(e_hh.get()))
+    e_min.delete(0,len(e_min.get()))
+    e_ss.delete(0,len(e_ss.get()))
+    read_combo()
+    ReadTableTime()
+    window_time.update()
+
+def CheckData_TimeFalse (year,month,day,hour,min,sec):  
+    corect = ""
+    if year.isdigit():
+        if len(year)<4:
+            x=4-len(year)
+            year="0"*x+year
+            corect += year
+        else:
+            corect += year
+    else:
+        return 0
+    if month.isdigit():
+        if len(month)==1 :
+            month="0"+month 
+            corect += " "+month
+        else:
+            corect += " "+month
+    else:
+        return 1
+    if day.isdigit():
+        if len(day)==1 :
+            day="0"+day 
+            corect += " "+day
+        else:
+            corect += " "+day
+    else:
+        return 2
+    if hour.isdigit():
+        if len(hour)==1 :
+            hour="0"+hour 
+            corect += " "+hour
+        else:
+            corect += " "+hour
+    else:
+        return 3
+    if  min.isdigit():
+        if len(min)==1 :
+            min="0"+min 
+            corect += " "+min
+        else:
+            corect += " "+min
+    else:
+        return 4
+    if  sec.isdigit():
+        if len(sec) == 1:
+            sec="0"+sec 
+            corect += " "+sec
+        else:
+            corect += " "+sec
+
+    else:
+        return 5
+    return corect
+
+
+
+
+def CheckData_Time(year,month,day,hour,min,sec):
+    mj=["01","03","05","07","08","10","12"]
+    corect = ""
+    time = str(datetime.now())
+    time= conv_time(time)
+    if year.isdigit() and month.isdigit() and day.isdigit() and hour.isdigit() and min.isdigit() :
+        corect += year
+        if len(month) == 2:
+            if int (month[0]) ==0 and int(month[1]) >=1 and int(month[1])<=9 or int (month[0]) ==1 and int(month[1]) >=0 and int(month[1])<=2:
+                corect = corect +" "+month
+            else:
+                return 1
+        elif len(month) == 1:
+            if int(month)>=1 and  int(month)<=9:
+                month = "0"+str(month)
+                corect = corect +" "+month
+            else:
+                return 1
+        else:
+            return 1
+    else:
+         return 0
+
+    if mj.count(month) == 1:
+        if len(day) == 2:
+            if int (day[0]) ==0  and int(day[1]) >=1 and int(day[1])<=9 or int(day[0]) == 1 and int(day[1]) >=0 and int(day[1])<=9 or int (day[0]) ==2 and int(day[1]) >=0 and int(day[1])<=9 or int (day[0]) ==3 and int(day[1]) >=0 and int(day[1])<=1:
+                corect =corect+ " "+day
+            else:
+                return 2
+        elif len(day) == 1:
+            if int(day)>=1 and  int(day)<=9:
+                day = "0"+str(day)
+                corect =corect+ " "+day
+            else:
+                    return 2
+        else:
+            return 2
+    elif month == "02":
+        if int(year) % 4 == 0 and  int(year) % 100 == 0 and int(year) % 400 == 0:
+            if len(day) == 2:
+                if int (day[0]) ==0  and int(day[1]) >=1 and int(day[1])<=9 or int(day[0]) == 1 and int(day[1]) >=0 and int(day[1])<=9 or int (day[0]) ==2 and int(day[1]) >=0 and int(day[1])<=9 :
+                    corect =corect+ " "+day
+                else:
+                    return 2
+            elif len(day) == 1:
+                if int(day)>=1 and  int(day)<=9:
+                    day = "0"+str(day)
+                    corect =corect+ " "+day
+                else:
+                     return 2
+        else:
+            if len(day) == 2:
+                if int (day[0]) ==0  and int(day[1]) >=1 and int(day[1])<=9 or int(day[0]) == 1 and int(day[1]) >=0 and int(day[1])<=9 or int (day[0]) ==2 and int(day[1]) >=0 and int(day[1])<=8 :
+                    corect =corect+ " "+day
+                else:
+                    return 2
+            elif len(day) == 1:
+                if int(day)>=1 and  int(day)<=9:
+                    day = "0"+str(day)
+                    corect =corect+ " "+day
+                else:
+                     return 2
+    else:
+        if len(day) == 2:
+            if int (day[0]) ==0  and int(day[1]) >=1 and int(day[1])<=9 or int(day[0]) == 1 and int(day[1]) >=0 and int(day[1])<=9 or int (day[0]) ==2 and int(day[1]) >=0 and int(day[1])<=9 or int (day[0]) ==3 and int(day[1]) ==0:
+                corect =corect+ " "+day
+            else:
+                return 2
+        elif len(day) == 1:
+            if int(day)>=1 and  int(day)<=9:
+                day = "0"+str(day)
+                corect =corect+ " "+day
+            else:
+                    return 2
+        else:
+            return 2
+    if len(hour) == 2:
+        if hour[0] == "0" and int(hour[1])>=0 and int(hour[1])<=9:
+            corect =corect+ " "+hour
+        elif hour[0] == "1" or min[0] == "2":
+            if int (hour)>=10 and int(hour)<=24:
+                corect =corect+ " "+hour
+            else:
+                return 3     
+        else:
+            return 3 
+    elif len(hour) == 1 :
+        if int(hour)>=0 and int(hour)<=9:
+            hour="0"+hour
+            corect =corect+ " "+hour
+        else:
+            return 3
+    else:
+        return 3
+    if  len(min) == 2:
+        if min[0] == "0" and int(min[1])>=0 and int(min[1])<=9:
+            corect = corect+" "+min
+        elif min[0] == "1" or min[0] == "2" or min[0] == "3" or min[0] == "4" or min[0] == "5" or min[0] == "6":
+            if int (min)>= 10 and int (min)<=60:
+                corect = corect+" "+min
+            else:
+                return 4
+        else:
+            return 4 
+    elif len(min) == 1:
+        if int(min) >= 0  and int(min) <= 9 :
+            corect = corect+" "+min
+        else:
+            return 4
+    else:
+        return 4
+
+    if sec.count(".")== 1:
+         sec_t= sec.split(".")
+         if sec_t[0].isdigit() and sec_t[1].isdigit():
+             if len(sec_t[0]) == 1:
+                 sec_t[0] = "0"+sec_t[0]
+                 sec = sec_t[0] +"."+sec_t[1]
+                 corect = corect+" "+sec
+             else:
+                  corect = corect+" "+sec 
+         else:
+             return 5
+    elif sec.isdigit():
+        if len(sec) == 1:
+            sec = "0"+sec
+            corect = corect+" "+sec
+        else:
+            corect = corect+" "+sec
+    else:
+        return 5
+     
+    return corect 
+
+#######################################
+########## END DEF FOR TIME ##########
+#######################################
+######################################################################################################################################################################################################################################################################################
+########################################################################################################################## RSCA - Remote System Counter Access########################################################################################################################
+######################################################################################################################################################################################################################################################################################
+def RSCA ():	
+    if Check_exist('config.db') is False:
+        create('Config.db',1)
+    if Check_exist('log.txt') is False:
+        create()
+    ## Iznad ovog je smece od koda 
+    global app
+    app=tk.Tk()
+    app.title("RSCA")
+    app.minsize(1340 , 230)
+    if check_for_updates(Version,"https://raw.githubusercontent.com/Vinko111/RSCA/main/Version.txt") is True:
+        messagebox.askyesno(title='Update available ', message='Do you wish to update software to new version')
+    ############################################################ File Menu ############################################################
+    menubar = tk.Menu(app)
+    filemenu = tk.Menu(menubar, tearoff=0)
+    filemenu.add_command(label="New Printer",command=add_conf)
+    filemenu.add_command(label="Refresh printer list and combo box",command = Refresh)
+    filemenu.add_command(label="Delete Current Entry",command=RefreshEntry)
+    filemenu.add_separator()
+    filemenu.add_command(label="Export Data into file",command=Export)
+    filemenu.add_command(label="Rebuild Database",command=Rebuild)
+    filemenu.add_separator()
+    filemenu.add_command(label="Exit", command=app.quit)
+    menubar.add_cascade(label="File", menu=filemenu)
+    ############################################################ END OF FILE MENU #######################################################
+    global labelframe
+    global Button_Frame
+    labelframe = tk.LabelFrame(app,)
+    labelframe.grid(column=0,row=0,padx=20,pady=10)
+    Button_Frame=tk.LabelFrame(app,)
+    Button_Frame.grid(column=0,row=1)
+    tk.Label(labelframe, text="Hostname",borderwidth=2, relief="raised",width=17).grid(column=0,row=0)
+    tk.Label(labelframe, text="IP addresa",borderwidth=2, relief="raised",width=17).grid(column=1,row=0)
+    tk.Label(labelframe, text="Subnet maska",borderwidth=2, relief="raised",width=17).grid(column=2,row=0)
+    tk.Label(labelframe, text="Model Pritnera",borderwidth=2, relief="raised",width=25).grid(column=3,row=0)
+    tk.Label(labelframe, text="E-mail addresa",borderwidth=2, relief="raised",width=17).grid(column=4,row=0)
+    tk.Label(labelframe, text="Reciver E-mail addresa",borderwidth=2, relief="raised",width=17).grid(column=5,row=0)
+    tk.Label(labelframe, text="Time",borderwidth=2, relief="raised",width=17).grid(column=6,row=0)
+    tk.Label(Button_Frame, text="Hostname",borderwidth=2, relief="raised",width=17).grid(column=0,row=0)
+    tk.Label(Button_Frame, text="IP addresa",borderwidth=2, relief="raised",width=17).grid(column=1,row=0)
+    tk.Label(Button_Frame, text="Subnet maska",borderwidth=2, relief="raised",width=17).grid(column=2,row=0)
+    tk.Label(Button_Frame, text="Model Pritnera",borderwidth=2, relief="raised",width=25).grid(column=3,row=0)
+    tk.Label(Button_Frame, text="E-mail addresa",borderwidth=2, relief="raised",width=17).grid(column=4,row=0)
+    tk.Label(Button_Frame, text="Reciver E-mail addresa",borderwidth=2, relief="raised",width=17).grid(column=5,row=0)
+    tk.Label(Button_Frame, text="Time",borderwidth=2, relief="raised",width=17).grid(column=6,row=0)
+    tk.Label(labelframe, text="Last Email",borderwidth=2, relief="raised",width=17).grid(column=7,row=0)
+    tk.Label(labelframe, text="",relief="raised",width=30).grid(column=8,row=0,columnspan=4)
+    
+    ##################################### Comment ########################################################
+    ## Dodati  varijable za svaki entry da mozes korsitit podatke   !! DONE                                                           
+    ##  Combobox Nije namijesten napraviti funkciju koja ca u 3 različite varijable davati podatke iz config.db file           
+    ## Odgonetni kako napraviti da preneses pdoatek iz comboboxa u var koju mozes koristiti.                                   
+    ################################# End of comment ####################################################
+    global E_Conf_Host
+    global E_Conf_IP
+    global E_Conf_Mask
+    global c_model
+    global c_email
+    global E_Conf_RecEmail
+    global c_time
+    # var za email
+    global var_state
+    global var_Server
+    var_Server = 1
+    var_state = 0
+
+    E_Conf_Host = tk.Entry(Button_Frame)
+    E_Conf_Host.grid(column=0,row=9)
+    E_Conf_IP = tk.Entry(Button_Frame)
+    E_Conf_IP.grid(column=1,row=9)
+    E_Conf_Mask = tk.Entry(Button_Frame)
+    E_Conf_Mask.grid(column=2,row=9)
+    c_model = Combobox(Button_Frame,width=27,state="readonly")
+    c_model.grid(column=3,row=9)
+    c_email = Combobox(Button_Frame,width=17,state="readonly")
+    c_email.grid(column=4,row=9)
+    E_Conf_RecEmail = tk.Entry(Button_Frame)
+    E_Conf_RecEmail.grid(column=5,row=9)
+    c_time = Combobox(Button_Frame,width=17,state="readonly")
+    c_time.grid(column=6,row=9)
+    realod_conf()
+    read_combo()
+    tk.Button(Button_Frame,text="Edit E-mail page",width=17, command=Email_window).grid(column=4,row=10)
+    tk.Button(Button_Frame,text="Edit time page",width=17,command=Model_time).grid(column=6,row=10)
+    tk.Button(Button_Frame,text="Add new model",width=25,command=Model_window).grid(column=3,row=10)
+    tk.Button(Button_Frame,text="Add new printer",width=51,command=add_conf).grid(column=4,row=11,columnspan=3,rowspan=2,pady=5)
+    tk.Button(Button_Frame,text="Automatic Search",width=51,command=ButtonAutomatic).grid(column=0,row=11,columnspan=3,rowspan=2,pady=5)
+    app.config(menu=menubar)
+    ## Check Time to send emails##
+    t =threading.Thread(target=ReturnDataForSendTime)
+    t.start()
+    app.mainloop()
+#######################################################################################################################################################################################################################################################
+RSCA()
+#Updater.Updater()
+os._exit(0)
