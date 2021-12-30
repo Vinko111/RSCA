@@ -431,9 +431,7 @@ def readCombo_ReturnData ():
   
 
 def add_conf ():
-     if Var_M[0] =="":
-         messagebox.showwarning(title='Neispravni unos podataka',message='Niste odabrali Model printera.\nMolim vas odaberi te model printera')
-         return False
+
      if str(E_Conf_IP.get()) =="":
          messagebox.showwarning(title='Neispravni unos podataka',message='IP printera je prazan.\nMolim vas unesite IP printera')
          return False
@@ -457,6 +455,9 @@ def add_conf ():
      Var_M=Var_M.split(" | ")
      Var_E=Var_E.split(" | ")
      Var_T=Var_T.split(" | ")
+     if Var_M[0] =="":
+         messagebox.showwarning(title='Neispravni unos podataka',message='Niste odabrali Model printera.\nMolim vas odaberi te model printera')
+         return False
      if Var_E[0] =="":
          messagebox.showwarning(title='Neispravni unos podataka',message='Niste odabrali E-mail.\nMolim vas odaberi te E-mail')
          return False
@@ -471,12 +472,15 @@ def add_conf ():
          return False
 
      var_ID = Return_id(0)
-     for x in range(0,len(var_ID)):
-         if x+1 != var_ID[x]:
-             id=x+1
-             break
-         else:
-             id=x+2
+     if len(var_ID) == 0:
+         id=1
+     else:
+        for x in range(0,len(var_ID)):
+            if x+1 != var_ID[x]:
+                id=x+1
+                break
+            else:
+                id=x+2
 
      conn=sqlite3.connect("Config.db")
      c= conn.cursor()
@@ -2552,16 +2556,18 @@ def RSCA ():
     app.minsize(1340 , 230)
     ############################################################ File Menu ############################################################
     menubar = tk.Menu(app)
+    viewmenu = tk.Menu(menubar, tearoff=0)
     filemenu = tk.Menu(menubar, tearoff=0)
     filemenu.add_command(label="New Printer",command=add_conf)
     filemenu.add_command(label="Refresh printer list and combo box",command = Refresh)
     filemenu.add_command(label="Delete Current Entry",command=RefreshEntry)
     filemenu.add_separator()
-    filemenu.add_command(label="Export Data into file",command=Export)
     filemenu.add_command(label="Rebuild Database",command=Rebuild)
     filemenu.add_separator()
     filemenu.add_command(label="Exit", command=app.quit)
     menubar.add_cascade(label="File", menu=filemenu)
+    viewmenu.add_command(label="Export Data into file",command=Export)
+    menubar.add_cascade(label="View", menu=viewmenu)
     ############################################################ END OF FILE MENU #######################################################
     global labelframe
     global Button_Frame
